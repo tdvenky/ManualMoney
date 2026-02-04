@@ -49,7 +49,7 @@ If a transaction exists in ManualMoney, it’s because *you consciously recorded
 ### End of Pay Period
 - Any remaining money can be:
   - **Saved**, or
-  - **Carried forward** into the same bucket for the next pay period.
+  - **Carried forward** into the same bucket or another for the next pay period.
 
 ### Monthly Insight
 - Monthly savings percentage is calculated from two pay periods.
@@ -59,12 +59,11 @@ If a transaction exists in ManualMoney, it’s because *you consciously recorded
 
 ## 🗂 Data & Storage
 
-- Local-first storage using browser-based persistence.
+- Local-first storage using JSON file-based persistence.
 - Manual export/import via JSON files.
-- Designed for easy versioning in Google Drive
-  (similar to a KeePass database workflow).
+- Designed for easy versioning in Google Drive.
 
-No accounts. No servers. Your data stays with you.
+No accounts. Your data stays with you.
 
 ---
 
@@ -82,17 +81,14 @@ No accounts. No servers. Your data stays with you.
 
 - Frontend: React
 - UI: Minimal, ledger-inspired table layout
-- Storage: IndexedDB (local)
+- Storage: JSON file (local)
 - Charts: Optional, lightweight summaries only
 
 ---
 
 ## 🎯 Goal
 
-ManualMoney exists to make a **disciplined, intentional personal finance system**
-sustainable over the long term — without turning it into a black box.
-
-If the app ever feels like it’s “doing things for you,” it’s probably doing too much.
+ManualMoney exists to make a **disciplined, intentional personal finance system**.
 
 ---
 
