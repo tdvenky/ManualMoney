@@ -142,4 +142,123 @@ describe('TransactionList', () => {
     // $80.00 appears as new balance of second transaction
     expect(screen.getByText('$80.00')).toBeInTheDocument();
   });
+
+  it('calls onUpdateTransaction when edit form is saved', () => {
+    const onUpdateTransaction = vi.fn();
+    render(
+      <TransactionList
+        transactions={mockTransactions}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={onUpdateTransaction}
+        onDeleteTransaction={vi.fn()}
+        payPeriodStartDate="2024-01-01"
+        payPeriodEndDate="2024-01-15"
+      />
+    );
+
+    // Click on a transaction to enter edit mode
+    fireEvent.click(screen.getByText('Coffee'));
+
+    // Modify description and amount
+    fireEvent.change(screen.getByDisplayValue('Coffee'), {
+      target: { value: 'Espresso' },
+    });
+    fireEvent.change(screen.getByDisplayValue('5'), {
+      target: { value: '7' },
+    });
+
+    // Submit the edit form
+    fireEvent.click(screen.getByText('Save'));
+
+    expect(onUpdateTransaction).toHaveBeenCalledWith('1', 'Espresso', 7, '2024-01-03');
+  });
+
+  it('cancels edit mode without saving', () => {
+    const onUpdateTransaction = vi.fn();
+    render(
+      <TransactionList
+        transactions={mockTransactions}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={onUpdateTransaction}
+        onDeleteTransaction={vi.fn()}
+        payPeriodStartDate="2024-01-01"
+        payPeriodEndDate="2024-01-15"
+      />
+    );
+
+    // Click on a transaction to enter edit mode
+    fireEvent.click(screen.getByText('Coffee'));
+    expect(screen.getByText('Save')).toBeInTheDocument();
+
+    // Click cancel
+    fireEvent.click(screen.getByText('Cancel'));
+
+    // Should exit edit mode without calling update
+    expect(onUpdateTransaction).not.toHaveBeenCalled();
+    expect(screen.queryByText('Save')).not.toBeInTheDocument();
+  });
+
+  it('calls onDeleteTransaction when delete is confirmed', () => {
+    const onDeleteTransaction = vi.fn();
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(
+      <TransactionList
+        transactions={mockTransactions}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={vi.fn()}
+        onDeleteTransaction={onDeleteTransaction}
+        payPeriodStartDate="2024-01-01"
+        payPeriodEndDate="2024-01-15"
+      />
+    );
+
+    // Click the delete button (×) on the first transaction
+    const deleteButtons = screen.getAllByTitle('Delete transaction');
+    fireEvent.click(deleteButtons[0]);
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(onDeleteTransaction).toHaveBeenCalledWith('1');
+  });
+
+  it('does not delete transaction when confirm is cancelled', () => {
+    const onDeleteTransaction = vi.fn();
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+    render(
+      <TransactionList
+        transactions={mockTransactions}
+        onAddTransaction={vi.fn()}
+        onUpdateTransaction={vi.fn()}
+        onDeleteTransaction={onDeleteTransaction}
+        payPeriodStartDate="2024-01-01"
+        payPeriodEndDate="2024-01-15"
+      />
+    );
+
+    const deleteButtons = screen.getAllByTitle('Delete transaction');
+    fireEvent.click(deleteButtons[0]);
+
+    expect(window.confirm).toHaveBeenCalled();
+    expect(onDeleteTransaction).not.toHaveBeenCalled();
+  });
+
+  it('does not add transaction when fields are empty', () => {
+    const onAddTransaction = vi.fn();
+    render(
+      <TransactionList
+        transactions={[]}
+        onAddTransaction={onAddTransaction}
+        onUpdateTransaction={vi.fn()}
+        onDeleteTransaction={vi.fn()}
+        payPeriodStartDate="2024-01-01"
+        payPeriodEndDate="2024-01-15"
+      />
+    );
+
+    // Submit without filling in fields
+    fireEvent.click(screen.getByText('Add'));
+
+    expect(onAddTransaction).not.toHaveBeenCalled();
+  });
 });

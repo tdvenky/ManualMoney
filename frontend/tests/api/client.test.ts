@@ -43,6 +43,16 @@ describe('API Client', () => {
       expect(result).toEqual(mockBuckets);
     });
 
+    it('getBucket calls GET /buckets/:id', async () => {
+      const mockBucket: Bucket = { id: '1', name: 'Test', type: 'EXPENSE', createdAt: '', updatedAt: '' };
+      mockGet.mockResolvedValueOnce({ data: mockBucket });
+
+      const result = await api.getBucket('1');
+
+      expect(mockGet).toHaveBeenCalledWith('/buckets/1');
+      expect(result).toEqual(mockBucket);
+    });
+
     it('createBucket calls POST /buckets', async () => {
       const newBucket = { name: 'Test', type: 'EXPENSE' as const };
       const createdBucket = { id: '1', ...newBucket, createdAt: '', updatedAt: '' };
@@ -82,6 +92,16 @@ describe('API Client', () => {
       expect(mockGet).toHaveBeenCalledWith('/payperiods');
     });
 
+    it('getPayPeriod calls GET /payperiods/:id', async () => {
+      const mockPayPeriod = { id: '1', payDate: '2024-01-01', amount: 2000 };
+      mockGet.mockResolvedValueOnce({ data: mockPayPeriod });
+
+      const result = await api.getPayPeriod('1');
+
+      expect(mockGet).toHaveBeenCalledWith('/payperiods/1');
+      expect(result).toEqual(mockPayPeriod);
+    });
+
     it('createPayPeriod calls POST /payperiods', async () => {
       const newPayPeriod = { payDate: '2024-01-01', amount: 2000 };
       mockPost.mockResolvedValueOnce({ data: { id: '1', ...newPayPeriod } });
@@ -89,6 +109,16 @@ describe('API Client', () => {
       await api.createPayPeriod(newPayPeriod);
 
       expect(mockPost).toHaveBeenCalledWith('/payperiods', newPayPeriod);
+    });
+
+    it('updatePayPeriod calls PUT /payperiods/:id', async () => {
+      const updateData = { payDate: '2024-02-01', endDate: '2024-02-15', amount: 3000 };
+      mockPut.mockResolvedValueOnce({ data: { id: '1', ...updateData } });
+
+      const result = await api.updatePayPeriod('1', updateData);
+
+      expect(mockPut).toHaveBeenCalledWith('/payperiods/1', updateData);
+      expect(result).toEqual({ id: '1', ...updateData });
     });
 
     it('closePayPeriod calls PUT /payperiods/:id/close', async () => {
@@ -137,6 +167,14 @@ describe('API Client', () => {
       await api.updateTransaction('trans-1', updateData);
 
       expect(mockPut).toHaveBeenCalledWith('/transactions/trans-1', updateData);
+    });
+
+    it('deleteTransaction calls DELETE /transactions/:id', async () => {
+      mockDelete.mockResolvedValueOnce({});
+
+      await api.deleteTransaction('trans-1');
+
+      expect(mockDelete).toHaveBeenCalledWith('/transactions/trans-1');
     });
   });
 
