@@ -48,7 +48,7 @@ export function AddTransactionModal({ payPeriod, allocations, categories, subCat
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!allocationForCategory || !subCategoryId || !description || !amount) return;
+    if (!allocationForCategory || !subCategoryId || !amount) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -140,7 +140,6 @@ export function AddTransactionModal({ payPeriod, allocations, categories, subCat
               onChange={e => setDescription(e.target.value)}
               className={inputClass}
               placeholder="e.g. Pepper House"
-              required
             />
           </div>
 

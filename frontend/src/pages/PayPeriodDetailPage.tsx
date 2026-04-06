@@ -574,6 +574,7 @@ export function PayPeriodDetailPage() {
                         <div className="flex-1 min-w-0">
                           <div className="text-sm text-slate-800">{t.description}</div>
                           <div className="text-[11px] text-slate-400">{bucketLabel}</div>
+                          {t.notes && <div className="text-[11px] text-slate-400 italic mt-0.5">{t.notes}</div>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="font-mono text-sm text-slate-800">{fmt(t.amount)}</span>
@@ -607,9 +608,6 @@ export function PayPeriodDetailPage() {
                     );
                   })}
                 </div>
-                {txns.some(t => t.notes) && txns.map(t => t.notes ? (
-                  <div key={`note-${t.id}`} className="text-xs text-slate-400 px-3 mt-0.5">Note: {t.notes}</div>
-                ) : null)}
               </div>
             ))}
           </div>
