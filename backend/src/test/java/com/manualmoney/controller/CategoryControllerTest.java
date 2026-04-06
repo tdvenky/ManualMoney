@@ -1,9 +1,9 @@
 package com.manualmoney.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.manualmoney.model.Bucket;
-import com.manualmoney.model.BucketType;
-import com.manualmoney.service.BucketService;
+import com.manualmoney.model.Category;
+import com.manualmoney.model.CategoryType;
+import com.manualmoney.service.CategoryService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -21,8 +21,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(BucketController.class)
-class BucketControllerTest {
+@WebMvcTest(CategoryController.class)
+class CategoryControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -31,16 +31,16 @@ class BucketControllerTest {
     private ObjectMapper objectMapper;
 
     @MockBean
-    private BucketService bucketService;
+    private CategoryService categoryService;
 
     @Test
-    void getAllBuckets_shouldReturnBucketList() throws Exception {
-        when(bucketService.getAllBuckets()).thenReturn(Arrays.asList(
-                new Bucket("Groceries", BucketType.EXPENSE),
-                new Bucket("Savings", BucketType.SAVINGS)
+    void getAllCategories_shouldReturnCategoryList() throws Exception {
+        when(categoryService.getAllCategories()).thenReturn(Arrays.asList(
+                new Category("Groceries", CategoryType.EXPENSE),
+                new Category("Savings", CategoryType.SAVINGS)
         ));
 
-        mockMvc.perform(get("/api/buckets"))
+        mockMvc.perform(get("/api/categories"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].name").value("Groceries"))
@@ -48,33 +48,33 @@ class BucketControllerTest {
     }
 
     @Test
-    void getBucketById_shouldReturnBucket_whenExists() throws Exception {
-        Bucket bucket = new Bucket("Groceries", BucketType.EXPENSE);
-        UUID id = bucket.getId();
-        when(bucketService.getBucketById(id)).thenReturn(Optional.of(bucket));
+    void getCategoryById_shouldReturnCategory_whenExists() throws Exception {
+        Category category = new Category("Groceries", CategoryType.EXPENSE);
+        UUID id = category.getId();
+        when(categoryService.getCategoryById(id)).thenReturn(Optional.of(category));
 
-        mockMvc.perform(get("/api/buckets/" + id))
+        mockMvc.perform(get("/api/categories/" + id))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Groceries"));
     }
 
     @Test
-    void getBucketById_shouldReturn404_whenNotExists() throws Exception {
+    void getCategoryById_shouldReturn404_whenNotExists() throws Exception {
         UUID id = UUID.randomUUID();
-        when(bucketService.getBucketById(id)).thenReturn(Optional.empty());
+        when(categoryService.getCategoryById(id)).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/buckets/" + id))
+        mockMvc.perform(get("/api/categories/" + id))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    void createBucket_shouldReturnCreatedBucket() throws Exception {
-        Bucket bucket = new Bucket("Rent", BucketType.EXPENSE);
-        when(bucketService.createBucket(eq("Rent"), eq(BucketType.EXPENSE))).thenReturn(bucket);
+    void createCategory_shouldReturnCreatedCategory() throws Exception {
+        Category category = new Category("Rent", CategoryType.EXPENSE);
+        when(categoryService.createCategory(eq("Rent"), eq(CategoryType.EXPENSE))).thenReturn(category);
 
         String requestBody = "{\"name\": \"Rent\", \"type\": \"EXPENSE\"}";
 
-        mockMvc.perform(post("/api/buckets")
+        mockMvc.perform(post("/api/categories")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -83,15 +83,15 @@ class BucketControllerTest {
     }
 
     @Test
-    void updateBucket_shouldReturnUpdatedBucket_whenExists() throws Exception {
-        Bucket bucket = new Bucket("Food", BucketType.EXPENSE);
-        UUID id = bucket.getId();
-        when(bucketService.updateBucket(eq(id), eq("Food"), eq(BucketType.EXPENSE)))
-                .thenReturn(Optional.of(bucket));
+    void updateCategory_shouldReturnUpdatedCategory_whenExists() throws Exception {
+        Category category = new Category("Food", CategoryType.EXPENSE);
+        UUID id = category.getId();
+        when(categoryService.updateCategory(eq(id), eq("Food"), eq(CategoryType.EXPENSE)))
+                .thenReturn(Optional.of(category));
 
         String requestBody = "{\"name\": \"Food\", \"type\": \"EXPENSE\"}";
 
-        mockMvc.perform(put("/api/buckets/" + id)
+        mockMvc.perform(put("/api/categories/" + id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
@@ -99,20 +99,20 @@ class BucketControllerTest {
     }
 
     @Test
-    void deleteBucket_shouldReturn204_whenExists() throws Exception {
+    void deleteCategory_shouldReturn204_whenExists() throws Exception {
         UUID id = UUID.randomUUID();
-        when(bucketService.deleteBucket(id)).thenReturn(true);
+        when(categoryService.deleteCategory(id)).thenReturn(true);
 
-        mockMvc.perform(delete("/api/buckets/" + id))
+        mockMvc.perform(delete("/api/categories/" + id))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    void deleteBucket_shouldReturn404_whenNotExists() throws Exception {
+    void deleteCategory_shouldReturn404_whenNotExists() throws Exception {
         UUID id = UUID.randomUUID();
-        when(bucketService.deleteBucket(id)).thenReturn(false);
+        when(categoryService.deleteCategory(id)).thenReturn(false);
 
-        mockMvc.perform(delete("/api/buckets/" + id))
+        mockMvc.perform(delete("/api/categories/" + id))
                 .andExpect(status().isNotFound());
     }
 }

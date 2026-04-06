@@ -7,7 +7,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        mono: ['Courier New', 'Courier', 'monospace'],
+        sans: ['Geist Sans', 'system-ui', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'monospace'],
       },
     },
   },

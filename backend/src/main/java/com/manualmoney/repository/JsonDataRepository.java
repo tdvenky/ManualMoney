@@ -59,33 +59,63 @@ public class JsonDataRepository {
         }
     }
 
-    // Bucket operations
-    public List<Bucket> findAllBuckets() {
-        return appData.getBuckets();
+    // Category operations
+    public List<Category> findAllCategories() {
+        return appData.getCategories();
     }
 
-    public Optional<Bucket> findBucketById(UUID id) {
-        return appData.getBuckets().stream()
-                .filter(b -> b.getId().equals(id))
+    public Optional<Category> findCategoryById(UUID id) {
+        return appData.getCategories().stream()
+                .filter(c -> c.getId().equals(id))
                 .findFirst();
     }
 
-    public Bucket saveBucket(Bucket bucket) {
-        Optional<Bucket> existing = findBucketById(bucket.getId());
+    public Category saveCategory(Category category) {
+        Optional<Category> existing = findCategoryById(category.getId());
         if (existing.isPresent()) {
-            Bucket b = existing.get();
-            b.setName(bucket.getName());
-            b.setType(bucket.getType());
-            b.setUpdatedAt(LocalDateTime.now());
+            Category c = existing.get();
+            c.setName(category.getName());
+            c.setType(category.getType());
+            c.setUpdatedAt(LocalDateTime.now());
         } else {
-            appData.getBuckets().add(bucket);
+            appData.getCategories().add(category);
         }
         saveData();
-        return bucket;
+        return category;
     }
 
-    public void deleteBucket(UUID id) {
-        appData.getBuckets().removeIf(b -> b.getId().equals(id));
+    public void deleteCategory(UUID id) {
+        appData.getCategories().removeIf(c -> c.getId().equals(id));
+        saveData();
+    }
+
+    // SubCategory operations
+    public List<SubCategory> findAllSubCategories() {
+        return appData.getSubCategories();
+    }
+
+    public Optional<SubCategory> findSubCategoryById(UUID id) {
+        return appData.getSubCategories().stream()
+                .filter(s -> s.getId().equals(id))
+                .findFirst();
+    }
+
+    public SubCategory saveSubCategory(SubCategory subCategory) {
+        Optional<SubCategory> existing = findSubCategoryById(subCategory.getId());
+        if (existing.isPresent()) {
+            SubCategory s = existing.get();
+            s.setName(subCategory.getName());
+            s.setCategoryId(subCategory.getCategoryId());
+            s.setUpdatedAt(LocalDateTime.now());
+        } else {
+            appData.getSubCategories().add(subCategory);
+        }
+        saveData();
+        return subCategory;
+    }
+
+    public void deleteSubCategory(UUID id) {
+        appData.getSubCategories().removeIf(s -> s.getId().equals(id));
         saveData();
     }
 
@@ -105,6 +135,7 @@ public class JsonDataRepository {
         if (existing.isPresent()) {
             PayPeriod p = existing.get();
             p.setPayDate(payPeriod.getPayDate());
+            p.setEndDate(payPeriod.getEndDate());
             p.setAmount(payPeriod.getAmount());
             p.setAllocations(payPeriod.getAllocations());
             p.setStatus(payPeriod.getStatus());

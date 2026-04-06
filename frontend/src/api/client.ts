@@ -1,12 +1,15 @@
 import axios from 'axios';
 import type {
-  Bucket,
+  Category,
+  SubCategory,
   PayPeriod,
   Allocation,
   Transaction,
   AppData,
-  CreateBucketRequest,
-  UpdateBucketRequest,
+  CreateCategoryRequest,
+  UpdateCategoryRequest,
+  CreateSubCategoryRequest,
+  UpdateSubCategoryRequest,
   CreatePayPeriodRequest,
   UpdatePayPeriodRequest,
   CreateAllocationRequest,
@@ -22,29 +25,49 @@ const api = axios.create({
   },
 });
 
-// Bucket API
-export const getBuckets = async (): Promise<Bucket[]> => {
-  const response = await api.get<Bucket[]>('/buckets');
+// Category API
+export const getCategories = async (): Promise<Category[]> => {
+  const response = await api.get<Category[]>('/categories');
   return response.data;
 };
 
-export const getBucket = async (id: string): Promise<Bucket> => {
-  const response = await api.get<Bucket>(`/buckets/${id}`);
+export const getCategory = async (id: string): Promise<Category> => {
+  const response = await api.get<Category>(`/categories/${id}`);
   return response.data;
 };
 
-export const createBucket = async (data: CreateBucketRequest): Promise<Bucket> => {
-  const response = await api.post<Bucket>('/buckets', data);
+export const createCategory = async (data: CreateCategoryRequest): Promise<Category> => {
+  const response = await api.post<Category>('/categories', data);
   return response.data;
 };
 
-export const updateBucket = async (id: string, data: UpdateBucketRequest): Promise<Bucket> => {
-  const response = await api.put<Bucket>(`/buckets/${id}`, data);
+export const updateCategory = async (id: string, data: UpdateCategoryRequest): Promise<Category> => {
+  const response = await api.put<Category>(`/categories/${id}`, data);
   return response.data;
 };
 
-export const deleteBucket = async (id: string): Promise<void> => {
-  await api.delete(`/buckets/${id}`);
+export const deleteCategory = async (id: string): Promise<void> => {
+  await api.delete(`/categories/${id}`);
+};
+
+// SubCategory API
+export const getSubCategories = async (): Promise<SubCategory[]> => {
+  const response = await api.get<SubCategory[]>('/subcategories');
+  return response.data;
+};
+
+export const createSubCategory = async (data: CreateSubCategoryRequest): Promise<SubCategory> => {
+  const response = await api.post<SubCategory>('/subcategories', data);
+  return response.data;
+};
+
+export const updateSubCategory = async (id: string, data: UpdateSubCategoryRequest): Promise<SubCategory> => {
+  const response = await api.put<SubCategory>(`/subcategories/${id}`, data);
+  return response.data;
+};
+
+export const deleteSubCategory = async (id: string): Promise<void> => {
+  await api.delete(`/subcategories/${id}`);
 };
 
 // PayPeriod API
@@ -68,8 +91,17 @@ export const updatePayPeriod = async (id: string, data: UpdatePayPeriodRequest):
   return response.data;
 };
 
+export const deletePayPeriod = async (id: string): Promise<void> => {
+  await api.delete(`/payperiods/${id}`);
+};
+
 export const closePayPeriod = async (id: string): Promise<PayPeriod> => {
   const response = await api.put<PayPeriod>(`/payperiods/${id}/close`);
+  return response.data;
+};
+
+export const reopenPayPeriod = async (id: string): Promise<PayPeriod> => {
+  const response = await api.put<PayPeriod>(`/payperiods/${id}/reopen`);
   return response.data;
 };
 
@@ -77,6 +109,10 @@ export const closePayPeriod = async (id: string): Promise<PayPeriod> => {
 export const addAllocation = async (payPeriodId: string, data: CreateAllocationRequest): Promise<Allocation> => {
   const response = await api.post<Allocation>(`/payperiods/${payPeriodId}/allocations`, data);
   return response.data;
+};
+
+export const deleteAllocation = async (id: string): Promise<void> => {
+  await api.delete(`/allocations/${id}`);
 };
 
 export const updateAllocation = async (id: string, data: UpdateAllocationRequest): Promise<Allocation> => {

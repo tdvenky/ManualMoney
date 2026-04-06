@@ -2,6 +2,7 @@ package com.manualmoney.controller;
 
 import com.manualmoney.model.Allocation;
 import com.manualmoney.model.PayPeriod;
+import com.manualmoney.model.Priority;
 import com.manualmoney.model.Transaction;
 import com.manualmoney.service.PayPeriodService;
 import org.springframework.http.HttpStatus;
@@ -55,6 +56,14 @@ public class PayPeriodController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @DeleteMapping("/payperiods/{id}")
+    public ResponseEntity<Void> deletePayPeriod(@PathVariable UUID id) {
+        if (payPeriodService.deletePayPeriod(id)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     @PutMapping("/payperiods/{id}/close")
     public ResponseEntity<PayPeriod> closePayPeriod(@PathVariable UUID id) {
         return payPeriodService.closePayPeriod(id)
@@ -62,11 +71,26 @@ public class PayPeriodController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/payperiods/{id}/allocations")
-    public ResponseEntity<Allocation> addAllocation(@PathVariable UUID id, @RequestBody CreateAllocationRequest request) {
-        return payPeriodService.addAllocation(id, request.getBucketId(), request.getAllocatedAmount())
+    @PutMapping("/payperiods/{id}/reopen")
+    public ResponseEntity<PayPeriod> reopenPayPeriod(@PathVariable UUID id) {
+        return payPeriodService.reopenPayPeriod(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/payperiods/{id}/allocations")
+    public ResponseEntity<Allocation> addAllocation(@PathVariable UUID id, @RequestBody CreateAllocationRequest request) {
+        return payPeriodService.addAllocation(id, request.getCategoryId(), request.getAllocatedAmount())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/allocations/{id}")
+    public ResponseEntity<Void> deleteAllocation(@PathVariable UUID id) {
+        if (payPeriodService.deleteAllocation(id)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 
     @PutMapping("/allocations/{id}")
@@ -78,14 +102,16 @@ public class PayPeriodController {
 
     @PostMapping("/allocations/{id}/transactions")
     public ResponseEntity<Transaction> addTransaction(@PathVariable UUID id, @RequestBody CreateTransactionRequest request) {
-        return payPeriodService.addTransaction(id, request.getDescription(), request.getAmount(), request.getDate())
+        return payPeriodService.addTransaction(id, request.getDescription(), request.getAmount(),
+                        request.getDate(), request.getSubCategoryId(), request.getPriority(), request.getNotes())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping("/transactions/{id}")
     public ResponseEntity<Transaction> updateTransaction(@PathVariable UUID id, @RequestBody UpdateTransactionRequest request) {
-        return payPeriodService.updateTransaction(id, request.getDescription(), request.getAmount(), request.getDate())
+        return payPeriodService.updateTransaction(id, request.getDescription(), request.getAmount(),
+                        request.getDate(), request.getSubCategoryId(), request.getPriority(), request.getNotes())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -125,11 +151,11 @@ public class PayPeriodController {
     }
 
     public static class CreateAllocationRequest {
-        private UUID bucketId;
+        private UUID categoryId;
         private BigDecimal allocatedAmount;
 
-        public UUID getBucketId() { return bucketId; }
-        public void setBucketId(UUID bucketId) { this.bucketId = bucketId; }
+        public UUID getCategoryId() { return categoryId; }
+        public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
         public BigDecimal getAllocatedAmount() { return allocatedAmount; }
         public void setAllocatedAmount(BigDecimal allocatedAmount) { this.allocatedAmount = allocatedAmount; }
     }
@@ -145,6 +171,9 @@ public class PayPeriodController {
         private String description;
         private BigDecimal amount;
         private LocalDate date;
+        private UUID subCategoryId;
+        private Priority priority;
+        private String notes;
 
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
@@ -152,12 +181,21 @@ public class PayPeriodController {
         public void setAmount(BigDecimal amount) { this.amount = amount; }
         public LocalDate getDate() { return date; }
         public void setDate(LocalDate date) { this.date = date; }
+        public UUID getSubCategoryId() { return subCategoryId; }
+        public void setSubCategoryId(UUID subCategoryId) { this.subCategoryId = subCategoryId; }
+        public Priority getPriority() { return priority; }
+        public void setPriority(Priority priority) { this.priority = priority; }
+        public String getNotes() { return notes; }
+        public void setNotes(String notes) { this.notes = notes; }
     }
 
     public static class UpdateTransactionRequest {
         private String description;
         private BigDecimal amount;
         private LocalDate date;
+        private UUID subCategoryId;
+        private Priority priority;
+        private String notes;
 
         public String getDescription() { return description; }
         public void setDescription(String description) { this.description = description; }
@@ -165,5 +203,11 @@ public class PayPeriodController {
         public void setAmount(BigDecimal amount) { this.amount = amount; }
         public LocalDate getDate() { return date; }
         public void setDate(LocalDate date) { this.date = date; }
+        public UUID getSubCategoryId() { return subCategoryId; }
+        public void setSubCategoryId(UUID subCategoryId) { this.subCategoryId = subCategoryId; }
+        public Priority getPriority() { return priority; }
+        public void setPriority(Priority priority) { this.priority = priority; }
+        public String getNotes() { return notes; }
+        public void setNotes(String notes) { this.notes = notes; }
     }
 }

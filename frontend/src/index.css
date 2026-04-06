@@ -3,5 +3,5 @@
 @tailwind utilities;
 
 body {
-  font-family: 'Courier New', Courier, monospace;
+  font-family: 'Geist Sans', system-ui, sans-serif;
 }

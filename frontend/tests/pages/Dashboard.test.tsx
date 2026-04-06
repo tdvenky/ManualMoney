@@ -2,16 +2,16 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { Dashboard } from '../../src/pages/Dashboard';
-import type { PayPeriod, Bucket } from '../../src/types';
+import type { PayPeriod, Category } from '../../src/types';
 
 vi.mock('../../src/api/client', () => ({
   getPayPeriods: vi.fn(),
-  getBuckets: vi.fn(),
+  getCategories: vi.fn(),
 }));
 
 import * as api from '../../src/api/client';
 
-const mockBuckets: Bucket[] = [
+const mockCategories: Category[] = [
   { id: 'b1', name: 'Groceries', type: 'EXPENSE', createdAt: '', updatedAt: '' },
 ];
 
@@ -24,7 +24,7 @@ const mockActivePayPeriod: PayPeriod = {
   allocations: [
     {
       id: 'a1',
-      bucketId: 'b1',
+      categoryId: 'b1',
       allocatedAmount: 500,
       currentBalance: 450,
       transactions: [],
@@ -54,7 +54,7 @@ describe('Dashboard', () => {
 
   it('shows loading state initially', () => {
     vi.mocked(api.getPayPeriods).mockReturnValue(new Promise(() => {}));
-    vi.mocked(api.getBuckets).mockReturnValue(new Promise(() => {}));
+    vi.mocked(api.getCategories).mockReturnValue(new Promise(() => {}));
 
     render(
       <MemoryRouter>
@@ -65,9 +65,9 @@ describe('Dashboard', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('shows welcome message when no pay periods exist', async () => {
+  it('shows empty state when no pay periods exist', async () => {
     vi.mocked(api.getPayPeriods).mockResolvedValue([]);
-    vi.mocked(api.getBuckets).mockResolvedValue([]);
+    vi.mocked(api.getCategories).mockResolvedValue([]);
 
     render(
       <MemoryRouter>
@@ -76,13 +76,13 @@ describe('Dashboard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Welcome to ManualMoney')).toBeInTheDocument();
+      expect(screen.getByText('No pay periods yet.')).toBeInTheDocument();
     });
   });
 
-  it('displays active pay periods', async () => {
+  it('displays active pay period section', async () => {
     vi.mocked(api.getPayPeriods).mockResolvedValue([mockActivePayPeriod]);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     render(
       <MemoryRouter>
@@ -91,14 +91,29 @@ describe('Dashboard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Active Pay Periods')).toBeInTheDocument();
-      expect(screen.getByText('$2,000.00', { exact: false })).toBeInTheDocument();
+      expect(screen.getByText('ACTIVE PAY PERIOD')).toBeInTheDocument();
+      expect(screen.getByText('ACTIVE')).toBeInTheDocument();
     });
   });
 
-  it('displays closed pay periods', async () => {
+  it('displays income amount for active pay period', async () => {
+    vi.mocked(api.getPayPeriods).mockResolvedValue([mockActivePayPeriod]);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
+
+    render(
+      <MemoryRouter>
+        <Dashboard />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('$2,000.00')).toBeInTheDocument();
+    });
+  });
+
+  it('does not show closed pay periods in dashboard', async () => {
     vi.mocked(api.getPayPeriods).mockResolvedValue([mockClosedPayPeriod]);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     render(
       <MemoryRouter>
@@ -107,29 +122,15 @@ describe('Dashboard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Closed Pay Periods')).toBeInTheDocument();
+      expect(screen.getByText('ACTIVE PAY PERIOD')).toBeInTheDocument();
     });
-  });
 
-  it('displays both active and closed pay periods', async () => {
-    vi.mocked(api.getPayPeriods).mockResolvedValue([mockActivePayPeriod, mockClosedPayPeriod]);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
-
-    render(
-      <MemoryRouter>
-        <Dashboard />
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText('Active Pay Periods')).toBeInTheDocument();
-      expect(screen.getByText('Closed Pay Periods')).toBeInTheDocument();
-    });
+    expect(screen.queryByText('Dec 1')).not.toBeInTheDocument();
   });
 
   it('shows error message on API failure', async () => {
     vi.mocked(api.getPayPeriods).mockRejectedValue(new Error('Network error'));
-    vi.mocked(api.getBuckets).mockRejectedValue(new Error('Network error'));
+    vi.mocked(api.getCategories).mockRejectedValue(new Error('Network error'));
 
     render(
       <MemoryRouter>
@@ -142,9 +143,9 @@ describe('Dashboard', () => {
     });
   });
 
-  it('shows bucket count in manage buckets link', async () => {
-    vi.mocked(api.getPayPeriods).mockResolvedValue([]);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+  it('shows category name in active pay period allocation table', async () => {
+    vi.mocked(api.getPayPeriods).mockResolvedValue([mockActivePayPeriod]);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     render(
       <MemoryRouter>
@@ -153,13 +154,13 @@ describe('Dashboard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('Manage Buckets (1)')).toBeInTheDocument();
+      expect(screen.getByText('Groceries')).toBeInTheDocument();
     });
   });
 
-  it('shows allocation summary for active pay periods', async () => {
-    vi.mocked(api.getPayPeriods).mockResolvedValue([mockActivePayPeriod]);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+  it('shows + New Pay Period button', async () => {
+    vi.mocked(api.getPayPeriods).mockResolvedValue([]);
+    vi.mocked(api.getCategories).mockResolvedValue([]);
 
     render(
       <MemoryRouter>
@@ -168,7 +169,7 @@ describe('Dashboard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText('1 allocation')).toBeInTheDocument();
+      expect(screen.getByText('+ New Pay Period')).toBeInTheDocument();
     });
   });
 });

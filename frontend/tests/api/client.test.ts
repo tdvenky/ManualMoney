@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Bucket, PayPeriod, Allocation, Transaction, AppData } from '../../src/types';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Category, PayPeriod, AppData } from '../../src/types';
 
 // Create mock functions
 const mockGet = vi.fn();
@@ -31,54 +31,54 @@ describe('API Client', () => {
   });
 
   describe('Buckets API', () => {
-    it('getBuckets calls GET /buckets', async () => {
-      const mockBuckets: Bucket[] = [
+    it('getCategories calls GET /categories', async () => {
+      const mockBuckets: Category[] = [
         { id: '1', name: 'Test', type: 'EXPENSE', createdAt: '', updatedAt: '' },
       ];
       mockGet.mockResolvedValueOnce({ data: mockBuckets });
 
-      const result = await api.getBuckets();
+      const result = await api.getCategories();
 
-      expect(mockGet).toHaveBeenCalledWith('/buckets');
+      expect(mockGet).toHaveBeenCalledWith('/categories');
       expect(result).toEqual(mockBuckets);
     });
 
-    it('getBucket calls GET /buckets/:id', async () => {
-      const mockBucket: Bucket = { id: '1', name: 'Test', type: 'EXPENSE', createdAt: '', updatedAt: '' };
+    it('getCategory calls GET /categories/:id', async () => {
+      const mockBucket: Category = { id: '1', name: 'Test', type: 'EXPENSE', createdAt: '', updatedAt: '' };
       mockGet.mockResolvedValueOnce({ data: mockBucket });
 
-      const result = await api.getBucket('1');
+      const result = await api.getCategory('1');
 
-      expect(mockGet).toHaveBeenCalledWith('/buckets/1');
+      expect(mockGet).toHaveBeenCalledWith('/categories/1');
       expect(result).toEqual(mockBucket);
     });
 
-    it('createBucket calls POST /buckets', async () => {
+    it('createCategory calls POST /categories', async () => {
       const newBucket = { name: 'Test', type: 'EXPENSE' as const };
       const createdBucket = { id: '1', ...newBucket, createdAt: '', updatedAt: '' };
       mockPost.mockResolvedValueOnce({ data: createdBucket });
 
-      const result = await api.createBucket(newBucket);
+      const result = await api.createCategory(newBucket);
 
-      expect(mockPost).toHaveBeenCalledWith('/buckets', newBucket);
+      expect(mockPost).toHaveBeenCalledWith('/categories', newBucket);
       expect(result).toEqual(createdBucket);
     });
 
-    it('updateBucket calls PUT /buckets/:id', async () => {
+    it('updateCategory calls PUT /categories/:id', async () => {
       const updateData = { name: 'Updated', type: 'SAVINGS' as const };
       mockPut.mockResolvedValueOnce({ data: { id: '1', ...updateData } });
 
-      const result = await api.updateBucket('1', updateData);
+      await api.updateCategory('1', updateData);
 
-      expect(mockPut).toHaveBeenCalledWith('/buckets/1', updateData);
+      expect(mockPut).toHaveBeenCalledWith('/categories/1', updateData);
     });
 
-    it('deleteBucket calls DELETE /buckets/:id', async () => {
+    it('deleteCategory calls DELETE /categories/:id', async () => {
       mockDelete.mockResolvedValueOnce({});
 
-      await api.deleteBucket('1');
+      await api.deleteCategory('1');
 
-      expect(mockDelete).toHaveBeenCalledWith('/buckets/1');
+      expect(mockDelete).toHaveBeenCalledWith('/categories/1');
     });
   });
 
@@ -87,7 +87,7 @@ describe('API Client', () => {
       const mockPayPeriods: PayPeriod[] = [];
       mockGet.mockResolvedValueOnce({ data: mockPayPeriods });
 
-      const result = await api.getPayPeriods();
+      await api.getPayPeriods();
 
       expect(mockGet).toHaveBeenCalledWith('/payperiods');
     });
@@ -103,7 +103,7 @@ describe('API Client', () => {
     });
 
     it('createPayPeriod calls POST /payperiods', async () => {
-      const newPayPeriod = { payDate: '2024-01-01', amount: 2000 };
+      const newPayPeriod = { payDate: '2024-01-01', endDate: '2024-01-15', amount: 2000 };
       mockPost.mockResolvedValueOnce({ data: { id: '1', ...newPayPeriod } });
 
       await api.createPayPeriod(newPayPeriod);
@@ -132,7 +132,7 @@ describe('API Client', () => {
 
   describe('Allocations API', () => {
     it('addAllocation calls POST /payperiods/:id/allocations', async () => {
-      const allocationData = { bucketId: 'bucket-1', allocatedAmount: 500 };
+      const allocationData = { categoryId: 'bucket-1', allocatedAmount: 500 };
       mockPost.mockResolvedValueOnce({ data: { id: 'alloc-1', ...allocationData } });
 
       await api.addAllocation('period-1', allocationData);
@@ -152,7 +152,7 @@ describe('API Client', () => {
 
   describe('Transactions API', () => {
     it('addTransaction calls POST /allocations/:id/transactions', async () => {
-      const transactionData = { description: 'Coffee', amount: 5 };
+      const transactionData = { description: 'Coffee', amount: 5, date: '2024-01-01', subCategoryId: 'sc1', priority: 'NEED_IT' as const };
       mockPost.mockResolvedValueOnce({ data: { id: 'trans-1', ...transactionData } });
 
       await api.addTransaction('alloc-1', transactionData);
@@ -161,7 +161,7 @@ describe('API Client', () => {
     });
 
     it('updateTransaction calls PUT /transactions/:id', async () => {
-      const updateData = { description: 'Lunch', amount: 10 };
+      const updateData = { description: 'Lunch', amount: 10, date: '2024-01-01', subCategoryId: 'sc1', priority: 'NEED_IT' as const };
       mockPut.mockResolvedValueOnce({ data: { id: 'trans-1', ...updateData } });
 
       await api.updateTransaction('trans-1', updateData);
@@ -180,7 +180,7 @@ describe('API Client', () => {
 
   describe('Export/Import API', () => {
     it('exportData calls GET /export', async () => {
-      const mockData: AppData = { buckets: [], payPeriods: [] };
+      const mockData: AppData = { categories: [], subCategories: [], payPeriods: [] };
       mockGet.mockResolvedValueOnce({ data: mockData });
 
       const result = await api.exportData();
@@ -190,7 +190,7 @@ describe('API Client', () => {
     });
 
     it('importData calls POST /import', async () => {
-      const importData: AppData = { buckets: [], payPeriods: [] };
+      const importData: AppData = { categories: [], subCategories: [], payPeriods: [] };
       mockPost.mockResolvedValueOnce({});
 
       await api.importData(importData);

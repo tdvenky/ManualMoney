@@ -1,8 +1,8 @@
 package com.manualmoney.service;
 
 import com.manualmoney.model.AppData;
-import com.manualmoney.model.Bucket;
-import com.manualmoney.model.BucketType;
+import com.manualmoney.model.Category;
+import com.manualmoney.model.CategoryType;
 import com.manualmoney.model.PayPeriod;
 import com.manualmoney.repository.JsonDataRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,15 +33,15 @@ class DataServiceTest {
     @Test
     void exportData_shouldReturnAppDataFromRepository() {
         AppData appData = new AppData();
-        appData.getBuckets().add(new Bucket("Groceries", BucketType.EXPENSE));
+        appData.getCategories().add(new Category("Groceries", CategoryType.EXPENSE));
         appData.getPayPeriods().add(new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2000")));
         when(repository.exportData()).thenReturn(appData);
 
         AppData result = dataService.exportData();
 
         assertNotNull(result);
-        assertEquals(1, result.getBuckets().size());
-        assertEquals("Groceries", result.getBuckets().get(0).getName());
+        assertEquals(1, result.getCategories().size());
+        assertEquals("Groceries", result.getCategories().get(0).getName());
         assertEquals(1, result.getPayPeriods().size());
         verify(repository).exportData();
     }
@@ -54,7 +54,7 @@ class DataServiceTest {
         AppData result = dataService.exportData();
 
         assertNotNull(result);
-        assertTrue(result.getBuckets().isEmpty());
+        assertTrue(result.getCategories().isEmpty());
         assertTrue(result.getPayPeriods().isEmpty());
         verify(repository).exportData();
     }
@@ -62,8 +62,8 @@ class DataServiceTest {
     @Test
     void importData_shouldDelegateToRepository() {
         AppData appData = new AppData();
-        appData.getBuckets().add(new Bucket("Rent", BucketType.EXPENSE));
-        appData.getBuckets().add(new Bucket("Savings", BucketType.SAVINGS));
+        appData.getCategories().add(new Category("Rent", CategoryType.EXPENSE));
+        appData.getCategories().add(new Category("Savings", CategoryType.SAVINGS));
 
         dataService.importData(appData);
 
@@ -82,8 +82,8 @@ class DataServiceTest {
     @Test
     void importData_shouldAcceptDataWithMultipleEntities() {
         AppData appData = new AppData();
-        appData.getBuckets().add(new Bucket("Groceries", BucketType.EXPENSE));
-        appData.getBuckets().add(new Bucket("Emergency Fund", BucketType.SAVINGS));
+        appData.getCategories().add(new Category("Groceries", CategoryType.EXPENSE));
+        appData.getCategories().add(new Category("Emergency Fund", CategoryType.SAVINGS));
         appData.getPayPeriods().add(new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2000")));
         appData.getPayPeriods().add(new PayPeriod(LocalDate.of(2024, 1, 16), LocalDate.of(2024, 1, 31), new BigDecimal("2500")));
 

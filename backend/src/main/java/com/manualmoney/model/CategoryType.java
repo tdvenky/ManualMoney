@@ -1,6 +1,6 @@
 package com.manualmoney.model;
 
-public enum BucketType {
+public enum CategoryType {
     EXPENSE,
     SAVINGS
 }

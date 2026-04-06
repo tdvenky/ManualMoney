@@ -29,7 +29,7 @@ describe('DataPage', () => {
   });
 
   it('exports data when export button is clicked', async () => {
-    vi.mocked(api.exportData).mockResolvedValue({ buckets: [], payPeriods: [] });
+    vi.mocked(api.exportData).mockResolvedValue({ categories: [], subCategories: [], payPeriods: [] });
 
     // Mock the anchor element click behavior
     const mockClick = vi.fn();
@@ -41,8 +41,8 @@ describe('DataPage', () => {
       }
       return el;
     });
-    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
-    global.URL.revokeObjectURL = vi.fn();
+    window.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    window.URL.revokeObjectURL = vi.fn();
 
     render(
       <MemoryRouter>
@@ -79,7 +79,7 @@ describe('DataPage', () => {
   it('imports data from file', async () => {
     vi.mocked(api.importData).mockResolvedValue(undefined);
 
-    const jsonData = JSON.stringify({ buckets: [], payPeriods: [] });
+    const jsonData = JSON.stringify({ categories: [], subCategories: [], payPeriods: [] });
     const file = new File([jsonData], 'data.json', { type: 'application/json' });
     // Mock file.text() since jsdom doesn't fully support it
     file.text = vi.fn().mockResolvedValue(jsonData);
@@ -111,7 +111,7 @@ describe('DataPage', () => {
 
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(
-      [JSON.stringify({ buckets: [], payPeriods: [] })],
+      [JSON.stringify({ categories: [], subCategories: [], payPeriods: [] })],
       'data.json',
       { type: 'application/json' }
     );
@@ -143,7 +143,7 @@ describe('DataPage', () => {
   });
 
   it('dismisses success message', async () => {
-    vi.mocked(api.exportData).mockResolvedValue({ buckets: [], payPeriods: [] });
+    vi.mocked(api.exportData).mockResolvedValue({ categories: [], subCategories: [], payPeriods: [] });
 
     const originalCreateElement = document.createElement.bind(document);
     vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
@@ -153,8 +153,8 @@ describe('DataPage', () => {
       }
       return el;
     });
-    global.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
-    global.URL.revokeObjectURL = vi.fn();
+    window.URL.createObjectURL = vi.fn(() => 'blob:mock-url');
+    window.URL.revokeObjectURL = vi.fn();
 
     render(
       <MemoryRouter>

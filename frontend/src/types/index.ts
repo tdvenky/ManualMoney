@@ -1,11 +1,27 @@
-export type BucketType = 'EXPENSE' | 'SAVINGS';
+export type CategoryType = 'EXPENSE' | 'SAVINGS';
 
 export type PayPeriodStatus = 'ACTIVE' | 'CLOSED';
 
-export interface Bucket {
+export type Priority = 'NEED_IT' | 'GOTTA_HAVE_IT' | 'MEH' | 'DROP_IT';
+
+export const PRIORITY_LABELS: Record<Priority, string> = {
+  NEED_IT: 'Need It',
+  GOTTA_HAVE_IT: 'Gotta Have It',
+  MEH: 'Meh',
+  DROP_IT: 'Drop It',
+};
+
+export interface Category {
   id: string;
   name: string;
-  type: BucketType;
+  type: CategoryType;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubCategory {
+  id: string;
+  name: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,13 +33,16 @@ export interface Transaction {
   date: string;
   previousBalance: number;
   newBalance: number;
+  subCategoryId: string;
+  priority: Priority;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface Allocation {
   id: string;
-  bucketId: string;
+  categoryId: string;
   allocatedAmount: number;
   currentBalance: number;
   transactions: Transaction[];
@@ -43,18 +62,27 @@ export interface PayPeriod {
 }
 
 export interface AppData {
-  buckets: Bucket[];
+  categories: Category[];
+  subCategories: SubCategory[];
   payPeriods: PayPeriod[];
 }
 
-export interface CreateBucketRequest {
+export interface CreateCategoryRequest {
   name: string;
-  type: BucketType;
+  type: CategoryType;
 }
 
-export interface UpdateBucketRequest {
+export interface UpdateCategoryRequest {
   name: string;
-  type: BucketType;
+  type: CategoryType;
+}
+
+export interface CreateSubCategoryRequest {
+  name: string;
+}
+
+export interface UpdateSubCategoryRequest {
+  name: string;
 }
 
 export interface CreatePayPeriodRequest {
@@ -70,7 +98,7 @@ export interface UpdatePayPeriodRequest {
 }
 
 export interface CreateAllocationRequest {
-  bucketId: string;
+  categoryId: string;
   allocatedAmount: number;
 }
 
@@ -82,10 +110,16 @@ export interface CreateTransactionRequest {
   description: string;
   amount: number;
   date: string;
+  subCategoryId: string;
+  priority: Priority;
+  notes?: string;
 }
 
 export interface UpdateTransactionRequest {
   description: string;
   amount: number;
   date: string;
+  subCategoryId: string;
+  priority: Priority;
+  notes?: string;
 }

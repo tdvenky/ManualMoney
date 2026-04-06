@@ -1,30 +1,30 @@
 package com.manualmoney.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import java.util.ArrayList;
 import java.util.List;
 
 public class AppData {
-    private List<Bucket> buckets;
+
+    @JsonAlias("buckets")
+    private List<Category> categories;
+
+    private List<SubCategory> subCategories;
     private List<PayPeriod> payPeriods;
 
     public AppData() {
-        this.buckets = new ArrayList<>();
+        this.categories = new ArrayList<>();
+        this.subCategories = new ArrayList<>();
         this.payPeriods = new ArrayList<>();
     }
 
-    public List<Bucket> getBuckets() {
-        return buckets;
-    }
+    public List<Category> getCategories() { return categories; }
+    public void setCategories(List<Category> categories) { this.categories = categories; }
 
-    public void setBuckets(List<Bucket> buckets) {
-        this.buckets = buckets;
-    }
+    public List<SubCategory> getSubCategories() { return subCategories; }
+    public void setSubCategories(List<SubCategory> subCategories) { this.subCategories = subCategories; }
 
-    public List<PayPeriod> getPayPeriods() {
-        return payPeriods;
-    }
-
-    public void setPayPeriods(List<PayPeriod> payPeriods) {
-        this.payPeriods = payPeriods;
-    }
+    public List<PayPeriod> getPayPeriods() { return payPeriods; }
+    public void setPayPeriods(List<PayPeriod> payPeriods) { this.payPeriods = payPeriods; }
 }

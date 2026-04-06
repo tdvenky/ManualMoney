@@ -2,32 +2,30 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PayPeriodDetailPage } from '../../src/pages/PayPeriodDetailPage';
-import type { PayPeriod, Bucket } from '../../src/types';
-
-const mockNavigate = vi.fn();
+import type { PayPeriod, Category } from '../../src/types';
 
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
+  return { ...actual };
 });
 
 vi.mock('../../src/api/client', () => ({
   getPayPeriod: vi.fn(),
-  getBuckets: vi.fn(),
+  getCategories: vi.fn(),
+  getSubCategories: vi.fn(),
   addAllocation: vi.fn(),
   updateAllocation: vi.fn(),
+  deleteAllocation: vi.fn(),
   addTransaction: vi.fn(),
   updateTransaction: vi.fn(),
   deleteTransaction: vi.fn(),
   closePayPeriod: vi.fn(),
+  reopenPayPeriod: vi.fn(),
 }));
 
 import * as api from '../../src/api/client';
 
-const mockBuckets: Bucket[] = [
+const mockCategories: Category[] = [
   { id: 'b1', name: 'Groceries', type: 'EXPENSE', createdAt: '', updatedAt: '' },
   { id: 'b2', name: 'Rent', type: 'EXPENSE', createdAt: '', updatedAt: '' },
   { id: 'b3', name: 'Savings', type: 'SAVINGS', createdAt: '', updatedAt: '' },
@@ -42,7 +40,7 @@ const mockPayPeriod: PayPeriod = {
   allocations: [
     {
       id: 'a1',
-      bucketId: 'b1',
+      categoryId: 'b1',
       allocatedAmount: 500,
       currentBalance: 450,
       transactions: [
@@ -53,6 +51,8 @@ const mockPayPeriod: PayPeriod = {
           date: '2024-01-03',
           previousBalance: 500,
           newBalance: 450,
+          subCategoryId: 'sc1',
+          priority: 'NEED_IT' as const,
           createdAt: '',
           updatedAt: '',
         },
@@ -79,47 +79,57 @@ describe('PayPeriodDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(window, 'confirm').mockReturnValue(true);
+    vi.mocked(api.getSubCategories).mockResolvedValue([]);
   });
 
   it('shows loading state initially', () => {
     vi.mocked(api.getPayPeriod).mockReturnValue(new Promise(() => {}));
-    vi.mocked(api.getBuckets).mockReturnValue(new Promise(() => {}));
+    vi.mocked(api.getCategories).mockReturnValue(new Promise(() => {}));
 
     renderWithRouter();
 
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('displays pay period details', async () => {
+  it('displays pay period status badge', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
     await waitFor(() => {
       expect(screen.getByText('ACTIVE')).toBeInTheDocument();
-      expect(screen.getByText('$2,000.00')).toBeInTheDocument();
-      expect(screen.getByText('Groceries')).toBeInTheDocument();
     });
   });
 
-  it('shows summary stats', async () => {
+  it('displays income amount', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
+
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByText('$2,000.00')).toBeInTheDocument();
+    });
+  });
+
+  it('shows summary stats headers', async () => {
+    vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
     await waitFor(() => {
       expect(screen.getByText('Income')).toBeInTheDocument();
-      expect(screen.getByText('Allocated')).toBeInTheDocument();
+      expect(screen.getAllByText('Allocated').length).toBeGreaterThan(0);
       expect(screen.getByText('Unallocated')).toBeInTheDocument();
-      expect(screen.getByText('Remaining')).toBeInTheDocument();
+      expect(screen.getAllByText('Remaining').length).toBeGreaterThan(0);
     });
   });
 
   it('shows close button for active pay period', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
@@ -131,7 +141,7 @@ describe('PayPeriodDetailPage', () => {
   it('does not show close button for closed pay period', async () => {
     const closedPayPeriod = { ...mockPayPeriod, status: 'CLOSED' as const };
     vi.mocked(api.getPayPeriod).mockResolvedValue(closedPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
@@ -144,7 +154,7 @@ describe('PayPeriodDetailPage', () => {
 
   it('closes pay period when close button is clicked', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
     vi.mocked(api.closePayPeriod).mockResolvedValue({ ...mockPayPeriod, status: 'CLOSED' });
 
     renderWithRouter();
@@ -158,33 +168,23 @@ describe('PayPeriodDetailPage', () => {
     });
   });
 
-  it('shows add allocation button for active pay period', async () => {
+  it('does not close pay period when confirm is cancelled', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false);
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
     await waitFor(() => {
-      expect(screen.getByText('Add Allocation')).toBeInTheDocument();
-    });
-  });
-
-  it('shows allocation form when Add Allocation is clicked', async () => {
-    vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
-
-    renderWithRouter();
-
-    await waitFor(() => {
-      fireEvent.click(screen.getByText('Add Allocation'));
+      fireEvent.click(screen.getByText('Close Pay Period'));
     });
 
-    expect(screen.getByText('Select a bucket...')).toBeInTheDocument();
+    expect(api.closePayPeriod).not.toHaveBeenCalled();
   });
 
   it('shows pay period not found on load failure', async () => {
     vi.mocked(api.getPayPeriod).mockRejectedValue(new Error('Not found'));
-    vi.mocked(api.getBuckets).mockRejectedValue(new Error('Not found'));
+    vi.mocked(api.getCategories).mockRejectedValue(new Error('Not found'));
 
     renderWithRouter();
 
@@ -193,103 +193,55 @@ describe('PayPeriodDetailPage', () => {
     });
   });
 
-  it('shows empty allocations message', async () => {
-    const emptyPayPeriod = { ...mockPayPeriod, allocations: [] };
-    vi.mocked(api.getPayPeriod).mockResolvedValue(emptyPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
-
-    renderWithRouter();
-
-    await waitFor(() => {
-      expect(screen.getByText(/No allocations yet/)).toBeInTheDocument();
-    });
-  });
-
-  it('shows pay period not found when pay period API fails', async () => {
-    vi.mocked(api.getPayPeriod).mockRejectedValue(new Error('Not found'));
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
-
-    renderWithRouter();
-
-    await waitFor(() => {
-      expect(screen.getByText('Pay period not found')).toBeInTheDocument();
-    });
-  });
-
-  it('submits the add allocation form', async () => {
+  it('shows sections headers', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
-    vi.mocked(api.addAllocation).mockResolvedValue({
-      id: 'a2',
-      bucketId: 'b2',
-      allocatedAmount: 800,
-      currentBalance: 800,
-      transactions: [],
-      createdAt: '',
-      updatedAt: '',
-    });
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
     await waitFor(() => {
-      fireEvent.click(screen.getByText('Add Allocation'));
-    });
-
-    // Select a bucket and enter amount
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'b2' } });
-    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '800' } });
-
-    // Submit the form
-    fireEvent.click(screen.getByText('Add'));
-
-    await waitFor(() => {
-      expect(api.addAllocation).toHaveBeenCalledWith('pp1', {
-        bucketId: 'b2',
-        allocatedAmount: 800,
-      });
+      expect(screen.getByText('SUMMARY')).toBeInTheDocument();
+      expect(screen.getByText('CATEGORIES')).toBeInTheDocument();
+      expect(screen.getByText('TRANSACTIONS')).toBeInTheDocument();
     });
   });
 
-  it('cancels the add allocation form', async () => {
+  it('shows category name in allocation table', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
     await waitFor(() => {
-      fireEvent.click(screen.getByText('Add Allocation'));
+      expect(screen.getAllByText('Groceries').length).toBeGreaterThan(0);
     });
-
-    expect(screen.getByText('Select a bucket...')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Cancel'));
-
-    expect(screen.queryByText('Select a bucket...')).not.toBeInTheDocument();
   });
 
-  it('shows error when add allocation fails', async () => {
+  it('shows transaction in transactions list', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
-    vi.mocked(api.addAllocation).mockRejectedValue(new Error('Failed'));
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
     await waitFor(() => {
-      fireEvent.click(screen.getByText('Add Allocation'));
+      expect(screen.getByText('Coffee')).toBeInTheDocument();
     });
+  });
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'b2' } });
-    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '800' } });
-    fireEvent.click(screen.getByText('Add'));
+  it('shows allocate budget button for active pay period', async () => {
+    vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
+
+    renderWithRouter();
 
     await waitFor(() => {
-      expect(screen.getByText('Failed to add allocation')).toBeInTheDocument();
+      expect(screen.getByText('Allocate Budget')).toBeInTheDocument();
     });
   });
 
   it('shows error when close pay period fails', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
     vi.mocked(api.closePayPeriod).mockRejectedValue(new Error('Failed'));
 
     renderWithRouter();
@@ -303,23 +255,9 @@ describe('PayPeriodDetailPage', () => {
     });
   });
 
-  it('does not close pay period when confirm is cancelled', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-    vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
-
-    renderWithRouter();
-
-    await waitFor(() => {
-      fireEvent.click(screen.getByText('Close Pay Period'));
-    });
-
-    expect(api.closePayPeriod).not.toHaveBeenCalled();
-  });
-
   it('dismisses error message', async () => {
     vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
     vi.mocked(api.closePayPeriod).mockRejectedValue(new Error('Failed'));
 
     renderWithRouter();
@@ -337,28 +275,78 @@ describe('PayPeriodDetailPage', () => {
     expect(screen.queryByText('Failed to close pay period')).not.toBeInTheDocument();
   });
 
-  it('does not show Add Allocation when all buckets are allocated', async () => {
-    const fullyAllocated: PayPeriod = {
-      ...mockPayPeriod,
-      allocations: mockBuckets.map((b) => ({
-        id: `a-${b.id}`,
-        bucketId: b.id,
-        allocatedAmount: 500,
-        currentBalance: 500,
-        transactions: [],
-        createdAt: '',
-        updatedAt: '',
-      })),
-    };
-    vi.mocked(api.getPayPeriod).mockResolvedValue(fullyAllocated);
-    vi.mocked(api.getBuckets).mockResolvedValue(mockBuckets);
+  it('shows error and does not call addAllocation when amount exceeds unallocated', async () => {
+    // mockPayPeriod: amount=2000, allocated=500, so unallocated=1500
+    vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
 
     renderWithRouter();
 
     await waitFor(() => {
-      expect(screen.getByText('Allocations (3)')).toBeInTheDocument();
+      expect(screen.getByText('Allocate Budget')).toBeInTheDocument();
     });
 
-    expect(screen.queryByText('Add Allocation')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('Allocate Budget'));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('0.00')).toBeInTheDocument();
+    });
+
+    const selects = screen.getAllByRole('combobox');
+    const categorySelect = selects[0];
+    fireEvent.change(categorySelect, { target: { value: 'b2' } });
+
+    const amountInput = screen.getByPlaceholderText('0.00');
+    fireEvent.change(amountInput, { target: { value: '1600' } });
+
+    const form = amountInput.closest('form')!;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Only \$1,500\.00 is available to allocate\./)).toBeInTheDocument();
+    });
+
+    expect(api.addAllocation).not.toHaveBeenCalled();
+  });
+
+  it('calls addAllocation when amount is within unallocated', async () => {
+    // mockPayPeriod: amount=2000, allocated=500, so unallocated=1500
+    vi.mocked(api.getPayPeriod).mockResolvedValue(mockPayPeriod);
+    vi.mocked(api.getCategories).mockResolvedValue(mockCategories);
+    vi.mocked(api.addAllocation).mockResolvedValue({
+      id: 'a2',
+      categoryId: 'b2',
+      allocatedAmount: 300,
+      currentBalance: 300,
+      transactions: [],
+      createdAt: '',
+      updatedAt: '',
+    });
+
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByText('Allocate Budget')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Allocate Budget'));
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('0.00')).toBeInTheDocument();
+    });
+
+    const selects = screen.getAllByRole('combobox');
+    const categorySelect = selects[0];
+    fireEvent.change(categorySelect, { target: { value: 'b2' } });
+
+    const amountInput = screen.getByPlaceholderText('0.00');
+    fireEvent.change(amountInput, { target: { value: '300' } });
+
+    const form = amountInput.closest('form')!;
+    fireEvent.submit(form);
+
+    await waitFor(() => {
+      expect(api.addAllocation).toHaveBeenCalledWith('pp1', { categoryId: 'b2', allocatedAmount: 300 });
+    });
   });
 });

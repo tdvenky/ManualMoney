@@ -23,13 +23,12 @@ export function PayPeriodForm({
 
   function getDefaultEndDate(startDate: string): string {
     const date = new Date(startDate);
-    date.setDate(date.getDate() + 13); // Default to 2 weeks
+    date.setDate(date.getDate() + 13);
     return date.toISOString().split('T')[0];
   }
 
   const handlePayDateChange = (newPayDate: string) => {
     setPayDate(newPayDate);
-    // Auto-update end date if it hasn't been manually set or is before new pay date
     if (!endDate || new Date(endDate) <= new Date(newPayDate)) {
       setEndDate(getDefaultEndDate(newPayDate));
     }
@@ -43,47 +42,49 @@ export function PayPeriodForm({
     }
   };
 
+  const inputClass = "w-full border-[0.5px] border-slate-300 rounded-[7px] px-3 py-2 font-mono text-sm text-slate-800 focus:outline-none focus:border-emerald-500";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+          <label className="block text-[11px] font-medium text-slate-500 mb-1">Start Date</label>
           <input
             type="date"
             value={payDate}
             onChange={(e) => handlePayDateChange(e.target.value)}
-            className="w-full border border-gray-300 px-3 py-2 font-mono text-sm"
+            className={inputClass}
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+          <label className="block text-[11px] font-medium text-slate-500 mb-1">End Date</label>
           <input
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
             min={payDate}
-            className="w-full border border-gray-300 px-3 py-2 font-mono text-sm"
+            className={inputClass}
             required
           />
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+        <label className="block text-[11px] font-medium text-slate-500 mb-1">Amount</label>
         <input
           type="number"
           step="0.01"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full border border-gray-300 px-3 py-2 font-mono text-sm"
+          className={inputClass}
           placeholder="0.00"
           required
         />
       </div>
-      <div className="flex gap-2">
+      <div className="flex gap-2 pt-1">
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-600 text-white text-sm hover:bg-blue-700"
+          className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-[7px] hover:bg-emerald-700"
         >
           {submitLabel}
         </button>
@@ -91,7 +92,7 @@ export function PayPeriodForm({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-gray-200 text-gray-700 text-sm hover:bg-gray-300"
+            className="px-4 py-2 bg-slate-700 text-white text-sm rounded-[7px] hover:bg-slate-600"
           >
             Cancel
           </button>

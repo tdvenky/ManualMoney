@@ -3,11 +3,6 @@ import { describe, it, expect, vi } from 'vitest';
 import { PayPeriodForm } from '../../src/components/PayPeriodForm';
 
 describe('PayPeriodForm', () => {
-  // Helper to get inputs by their position since labels lack htmlFor
-  const getDateInputs = () => screen.getAllByRole('textbox').length > 0
-    ? screen.getAllByRole('textbox')
-    : document.querySelectorAll('input[type="date"]');
-
   it('renders form fields', () => {
     render(<PayPeriodForm onSubmit={vi.fn()} />);
 

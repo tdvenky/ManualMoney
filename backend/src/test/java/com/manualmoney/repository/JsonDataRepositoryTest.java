@@ -35,37 +35,37 @@ class JsonDataRepositoryTest {
 
     @Test
     void saveBucket_shouldPersistBucket() {
-        Bucket bucket = new Bucket("Groceries", BucketType.EXPENSE);
+        Category bucket = new Category("Groceries", CategoryType.EXPENSE);
 
-        Bucket saved = repository.saveBucket(bucket);
+        Category saved = repository.saveCategory(bucket);
 
         assertNotNull(saved.getId());
         assertEquals("Groceries", saved.getName());
-        assertEquals(1, repository.findAllBuckets().size());
+        assertEquals(1, repository.findAllCategories().size());
     }
 
     @Test
     void saveBucket_shouldUpdateExistingBucket() {
-        Bucket bucket = new Bucket("Groceries", BucketType.EXPENSE);
-        repository.saveBucket(bucket);
+        Category bucket = new Category("Groceries", CategoryType.EXPENSE);
+        repository.saveCategory(bucket);
 
         // Modify and save the same bucket (same ID)
         bucket.setName("Food & Groceries");
-        bucket.setType(BucketType.SAVINGS);
-        repository.saveBucket(bucket);
+        bucket.setType(CategoryType.SAVINGS);
+        repository.saveCategory(bucket);
 
         // Should still be only 1 bucket, not 2
-        assertEquals(1, repository.findAllBuckets().size());
-        assertEquals("Food & Groceries", repository.findAllBuckets().get(0).getName());
-        assertEquals(BucketType.SAVINGS, repository.findAllBuckets().get(0).getType());
+        assertEquals(1, repository.findAllCategories().size());
+        assertEquals("Food & Groceries", repository.findAllCategories().get(0).getName());
+        assertEquals(CategoryType.SAVINGS, repository.findAllCategories().get(0).getType());
     }
 
     @Test
     void findBucketById_shouldReturnBucket_whenExists() {
-        Bucket bucket = new Bucket("Groceries", BucketType.EXPENSE);
-        repository.saveBucket(bucket);
+        Category bucket = new Category("Groceries", CategoryType.EXPENSE);
+        repository.saveCategory(bucket);
 
-        Optional<Bucket> found = repository.findBucketById(bucket.getId());
+        Optional<Category> found = repository.findCategoryById(bucket.getId());
 
         assertTrue(found.isPresent());
         assertEquals("Groceries", found.get().getName());
@@ -75,37 +75,37 @@ class JsonDataRepositoryTest {
     void findBucketById_shouldReturnEmpty_whenNotExists() {
         UUID randomId = UUID.randomUUID();
 
-        Optional<Bucket> found = repository.findBucketById(randomId);
+        Optional<Category> found = repository.findCategoryById(randomId);
 
         assertFalse(found.isPresent());
     }
 
     @Test
     void deleteBucket_shouldRemoveBucket() {
-        Bucket bucket = new Bucket("Groceries", BucketType.EXPENSE);
-        repository.saveBucket(bucket);
+        Category bucket = new Category("Groceries", CategoryType.EXPENSE);
+        repository.saveCategory(bucket);
 
-        repository.deleteBucket(bucket.getId());
+        repository.deleteCategory(bucket.getId());
 
-        assertEquals(0, repository.findAllBuckets().size());
+        assertEquals(0, repository.findAllCategories().size());
     }
 
     @Test
     void deleteBucket_shouldNotAffectOtherBuckets() {
-        Bucket bucket1 = new Bucket("Groceries", BucketType.EXPENSE);
-        Bucket bucket2 = new Bucket("Rent", BucketType.EXPENSE);
-        repository.saveBucket(bucket1);
-        repository.saveBucket(bucket2);
+        Category bucket1 = new Category("Groceries", CategoryType.EXPENSE);
+        Category bucket2 = new Category("Rent", CategoryType.EXPENSE);
+        repository.saveCategory(bucket1);
+        repository.saveCategory(bucket2);
 
-        repository.deleteBucket(bucket1.getId());
+        repository.deleteCategory(bucket1.getId());
 
-        assertEquals(1, repository.findAllBuckets().size());
-        assertEquals("Rent", repository.findAllBuckets().get(0).getName());
+        assertEquals(1, repository.findAllCategories().size());
+        assertEquals("Rent", repository.findAllCategories().get(0).getName());
     }
 
     @Test
     void findAllBuckets_shouldReturnEmptyList_whenNoBuckets() {
-        assertEquals(0, repository.findAllBuckets().size());
+        assertEquals(0, repository.findAllCategories().size());
     }
 
     // --- PayPeriod operations ---
@@ -327,14 +327,14 @@ class JsonDataRepositoryTest {
 
     @Test
     void exportData_shouldReturnAllData() {
-        Bucket bucket = new Bucket("Groceries", BucketType.EXPENSE);
-        repository.saveBucket(bucket);
+        Category bucket = new Category("Groceries", CategoryType.EXPENSE);
+        repository.saveCategory(bucket);
         PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2000"));
         repository.savePayPeriod(payPeriod);
 
         AppData exported = repository.exportData();
 
-        assertEquals(1, exported.getBuckets().size());
+        assertEquals(1, exported.getCategories().size());
         assertEquals(1, exported.getPayPeriods().size());
     }
 
@@ -343,29 +343,29 @@ class JsonDataRepositoryTest {
         AppData exported = repository.exportData();
 
         assertNotNull(exported);
-        assertTrue(exported.getBuckets().isEmpty());
+        assertTrue(exported.getCategories().isEmpty());
         assertTrue(exported.getPayPeriods().isEmpty());
     }
 
     @Test
     void importData_shouldReplaceAllData() {
-        Bucket bucket = new Bucket("Old", BucketType.EXPENSE);
-        repository.saveBucket(bucket);
+        Category bucket = new Category("Old", CategoryType.EXPENSE);
+        repository.saveCategory(bucket);
 
         AppData newData = new AppData();
-        newData.getBuckets().add(new Bucket("New1", BucketType.EXPENSE));
-        newData.getBuckets().add(new Bucket("New2", BucketType.SAVINGS));
+        newData.getCategories().add(new Category("New1", CategoryType.EXPENSE));
+        newData.getCategories().add(new Category("New2", CategoryType.SAVINGS));
 
         repository.importData(newData);
 
-        assertEquals(2, repository.findAllBuckets().size());
-        assertEquals("New1", repository.findAllBuckets().get(0).getName());
+        assertEquals(2, repository.findAllCategories().size());
+        assertEquals("New1", repository.findAllCategories().get(0).getName());
     }
 
     @Test
     void importData_shouldPersistToFile() {
         AppData newData = new AppData();
-        newData.getBuckets().add(new Bucket("Imported Bucket", BucketType.EXPENSE));
+        newData.getCategories().add(new Category("Imported Bucket", CategoryType.EXPENSE));
         newData.getPayPeriods().add(new PayPeriod(LocalDate.of(2024, 3, 1), LocalDate.of(2024, 3, 15), new BigDecimal("1500")));
 
         repository.importData(newData);
@@ -375,8 +375,8 @@ class JsonDataRepositoryTest {
         ReflectionTestUtils.setField(freshRepo, "dataPath", testDataPath);
         freshRepo.init();
 
-        assertEquals(1, freshRepo.findAllBuckets().size());
-        assertEquals("Imported Bucket", freshRepo.findAllBuckets().get(0).getName());
+        assertEquals(1, freshRepo.findAllCategories().size());
+        assertEquals("Imported Bucket", freshRepo.findAllCategories().get(0).getName());
         assertEquals(1, freshRepo.findAllPayPeriods().size());
     }
 
@@ -408,8 +408,8 @@ class JsonDataRepositoryTest {
     @Test
     void init_shouldLoadExistingDataFromFile() {
         // Save some data
-        Bucket bucket = new Bucket("Groceries", BucketType.EXPENSE);
-        repository.saveBucket(bucket);
+        Category bucket = new Category("Groceries", CategoryType.EXPENSE);
+        repository.saveCategory(bucket);
 
         PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2000"));
         Allocation allocation = new Allocation(UUID.randomUUID(), new BigDecimal("500"));
@@ -425,8 +425,8 @@ class JsonDataRepositoryTest {
         freshRepo.init();
 
         // All data should be loaded
-        assertEquals(1, freshRepo.findAllBuckets().size());
-        assertEquals("Groceries", freshRepo.findAllBuckets().get(0).getName());
+        assertEquals(1, freshRepo.findAllCategories().size());
+        assertEquals("Groceries", freshRepo.findAllCategories().get(0).getName());
         assertEquals(1, freshRepo.findAllPayPeriods().size());
         assertTrue(freshRepo.findAllocationById(allocation.getId()).isPresent());
         assertTrue(freshRepo.findTransactionById(transaction.getId()).isPresent());
@@ -439,8 +439,8 @@ class JsonDataRepositoryTest {
         ReflectionTestUtils.setField(freshRepo, "dataPath", tempDir.resolve("non-existent.json").toString());
         freshRepo.init();
 
-        assertNotNull(freshRepo.findAllBuckets());
-        assertTrue(freshRepo.findAllBuckets().isEmpty());
+        assertNotNull(freshRepo.findAllCategories());
+        assertTrue(freshRepo.findAllCategories().isEmpty());
         assertNotNull(freshRepo.findAllPayPeriods());
         assertTrue(freshRepo.findAllPayPeriods().isEmpty());
     }
@@ -456,19 +456,19 @@ class JsonDataRepositoryTest {
         freshRepo.init();
 
         // Should fall back to empty AppData
-        assertNotNull(freshRepo.findAllBuckets());
-        assertTrue(freshRepo.findAllBuckets().isEmpty());
+        assertNotNull(freshRepo.findAllCategories());
+        assertTrue(freshRepo.findAllCategories().isEmpty());
     }
 
     // --- Multiple buckets and pay periods ---
 
     @Test
     void findAllBuckets_shouldReturnAllSavedBuckets() {
-        repository.saveBucket(new Bucket("Groceries", BucketType.EXPENSE));
-        repository.saveBucket(new Bucket("Rent", BucketType.EXPENSE));
-        repository.saveBucket(new Bucket("Emergency Fund", BucketType.SAVINGS));
+        repository.saveCategory(new Category("Groceries", CategoryType.EXPENSE));
+        repository.saveCategory(new Category("Rent", CategoryType.EXPENSE));
+        repository.saveCategory(new Category("Emergency Fund", CategoryType.SAVINGS));
 
-        assertEquals(3, repository.findAllBuckets().size());
+        assertEquals(3, repository.findAllCategories().size());
     }
 
     @Test

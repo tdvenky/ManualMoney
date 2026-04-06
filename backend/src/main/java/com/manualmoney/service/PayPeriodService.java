@@ -50,9 +50,24 @@ public class PayPeriodService {
         });
     }
 
-    public Optional<Allocation> addAllocation(UUID payPeriodId, UUID bucketId, BigDecimal allocatedAmount) {
+    public Optional<PayPeriod> reopenPayPeriod(UUID id) {
+        return repository.findPayPeriodById(id).map(payPeriod -> {
+            payPeriod.setStatus(PayPeriodStatus.ACTIVE);
+            return repository.savePayPeriod(payPeriod);
+        });
+    }
+
+    public Optional<Allocation> addAllocation(UUID payPeriodId, UUID categoryId, BigDecimal allocatedAmount) {
         return repository.findPayPeriodById(payPeriodId).map(payPeriod -> {
-            Allocation allocation = new Allocation(bucketId, allocatedAmount);
+            BigDecimal totalAllocated = payPeriod.getAllocations().stream()
+                    .map(Allocation::getAllocatedAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal unallocated = payPeriod.getAmount().subtract(totalAllocated);
+            if (allocatedAmount.compareTo(unallocated) > 0) {
+                throw new IllegalArgumentException(
+                        "Cannot allocate " + allocatedAmount + ". Only " + unallocated + " is unallocated.");
+            }
+            Allocation allocation = new Allocation(categoryId, allocatedAmount);
             payPeriod.getAllocations().add(allocation);
             repository.savePayPeriod(payPeriod);
             return allocation;
@@ -62,6 +77,18 @@ public class PayPeriodService {
     public Optional<Allocation> updateAllocation(UUID allocationId, BigDecimal allocatedAmount) {
         return repository.findAllocationById(allocationId).map(allocation -> {
             BigDecimal difference = allocatedAmount.subtract(allocation.getAllocatedAmount());
+            if (difference.compareTo(BigDecimal.ZERO) > 0) {
+                PayPeriod payPeriod = repository.findPayPeriodByAllocationId(allocationId)
+                        .orElseThrow(() -> new RuntimeException("Pay period not found for allocation"));
+                BigDecimal totalAllocated = payPeriod.getAllocations().stream()
+                        .map(Allocation::getAllocatedAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal unallocated = payPeriod.getAmount().subtract(totalAllocated);
+                if (difference.compareTo(unallocated) > 0) {
+                    throw new IllegalArgumentException(
+                            "Cannot increase allocation by " + difference + ". Only " + unallocated + " is unallocated.");
+                }
+            }
             allocation.setAllocatedAmount(allocatedAmount);
             allocation.setCurrentBalance(allocation.getCurrentBalance().add(difference));
             allocation.setUpdatedAt(LocalDateTime.now());
@@ -70,14 +97,15 @@ public class PayPeriodService {
         });
     }
 
-    public Optional<Transaction> addTransaction(UUID allocationId, String description, BigDecimal amount, LocalDate date) {
+    public Optional<Transaction> addTransaction(UUID allocationId, String description, BigDecimal amount,
+                                                LocalDate date, UUID subCategoryId, Priority priority, String notes) {
         return repository.findAllocationById(allocationId).map(allocation -> {
             validateTransactionDate(allocationId, date);
 
-            Transaction transaction = new Transaction(description, amount, date, BigDecimal.ZERO, BigDecimal.ZERO);
+            Transaction transaction = new Transaction(description, amount, date, BigDecimal.ZERO, BigDecimal.ZERO,
+                    subCategoryId, priority, notes);
             allocation.getTransactions().add(transaction);
 
-            // Sort by date and recalculate all balances
             allocation.getTransactions().sort(Comparator.comparing(Transaction::getDate));
             BigDecimal runningBalance = allocation.getAllocatedAmount();
             for (Transaction t : allocation.getTransactions()) {
@@ -88,26 +116,27 @@ public class PayPeriodService {
 
             allocation.setCurrentBalance(runningBalance);
             allocation.setUpdatedAt(LocalDateTime.now());
-
             repository.save();
             return transaction;
         });
     }
 
-    public Optional<Transaction> updateTransaction(UUID transactionId, String description, BigDecimal amount, LocalDate date) {
+    public Optional<Transaction> updateTransaction(UUID transactionId, String description, BigDecimal amount,
+                                                   LocalDate date, UUID subCategoryId, Priority priority, String notes) {
         return repository.findTransactionById(transactionId).map(transaction -> {
             Allocation allocation = repository.findAllocationByTransactionId(transactionId)
                     .orElseThrow(() -> new RuntimeException("Allocation not found"));
 
             validateTransactionDate(allocation.getId(), date);
 
-            // Update the transaction fields
             transaction.setDescription(description);
             transaction.setAmount(amount);
             transaction.setDate(date);
+            transaction.setSubCategoryId(subCategoryId);
+            transaction.setPriority(priority);
+            transaction.setNotes(notes);
             transaction.setUpdatedAt(LocalDateTime.now());
 
-            // Sort by date and recalculate all balances from scratch
             allocation.getTransactions().sort(Comparator.comparing(Transaction::getDate));
             BigDecimal runningBalance = allocation.getAllocatedAmount();
             for (Transaction t : allocation.getTransactions()) {
@@ -119,7 +148,6 @@ public class PayPeriodService {
             allocation.setCurrentBalance(runningBalance);
             allocation.setUpdatedAt(LocalDateTime.now());
             repository.save();
-
             return transaction;
         });
     }
@@ -134,7 +162,6 @@ public class PayPeriodService {
         boolean removed = allocation.getTransactions().removeIf(t -> t.getId().equals(transactionId));
 
         if (removed) {
-            // Recalculate balances from scratch
             BigDecimal runningBalance = allocation.getAllocatedAmount();
             for (Transaction t : allocation.getTransactions()) {
                 t.setPreviousBalance(runningBalance);
@@ -147,6 +174,22 @@ public class PayPeriodService {
         }
 
         return removed;
+    }
+
+    public boolean deleteAllocation(UUID allocationId) {
+        Optional<PayPeriod> payPeriodOpt = repository.findPayPeriodByAllocationId(allocationId);
+        if (!payPeriodOpt.isPresent()) return false;
+        PayPeriod payPeriod = payPeriodOpt.get();
+        Allocation allocation = payPeriod.getAllocations().stream()
+                .filter(a -> a.getId().equals(allocationId))
+                .findFirst().orElse(null);
+        if (allocation == null) return false;
+        if (!allocation.getTransactions().isEmpty()) {
+            throw new IllegalArgumentException("Cannot delete an allocation that has transactions");
+        }
+        payPeriod.getAllocations().removeIf(a -> a.getId().equals(allocationId));
+        repository.savePayPeriod(payPeriod);
+        return true;
     }
 
     public boolean deletePayPeriod(UUID id) {

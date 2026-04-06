@@ -51,44 +51,41 @@ export function DataPage() {
 
   return (
     <div className="max-w-md mx-auto space-y-6">
-      <div>
-        <Link to="/" className="text-blue-600 hover:text-blue-800">&larr; Back to Dashboard</Link>
-        <h1 className="text-2xl font-bold mt-2">Data Management</h1>
-      </div>
+      <h1 className="text-xl font-bold text-slate-800">Data Management</h1>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+        <div className="bg-red-50 border-[0.5px] border-red-200 text-red-700 px-4 py-3 rounded-[10px] text-sm">
           {error}
           <button onClick={() => setError(null)} className="ml-4 underline">Dismiss</button>
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
+        <div className="bg-emerald-50 border-[0.5px] border-emerald-200 text-emerald-700 px-4 py-3 rounded-[10px] text-sm">
           {success}
           <button onClick={() => setSuccess(null)} className="ml-4 underline">Dismiss</button>
         </div>
       )}
 
-      <div className="border border-gray-300 bg-white p-6 rounded space-y-6">
+      <div className="bg-white border-[0.5px] border-slate-200 rounded-[10px] p-6 space-y-6">
         <div>
-          <h2 className="font-bold mb-2">Export Data</h2>
-          <p className="text-sm text-gray-600 mb-3">
+          <h2 className="font-semibold text-slate-800 mb-1">Export Data</h2>
+          <p className="text-sm text-slate-500 mb-3">
             Download all your data as a JSON file for backup or transfer.
           </p>
           <button
             onClick={handleExport}
-            className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700"
+            className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-[7px] hover:bg-emerald-700"
           >
             Export to JSON
           </button>
         </div>
 
-        <hr />
+        <hr className="border-[0.5px] border-slate-200" />
 
         <div>
-          <h2 className="font-bold mb-2">Import Data</h2>
-          <p className="text-sm text-gray-600 mb-3">
+          <h2 className="font-semibold text-slate-800 mb-1">Import Data</h2>
+          <p className="text-sm text-slate-500 mb-3">
             Import data from a previously exported JSON file. This will replace all existing data.
           </p>
           <input
@@ -96,12 +93,12 @@ export function DataPage() {
             type="file"
             accept=".json"
             onChange={handleImport}
-            className="block w-full text-sm text-gray-500
+            className="block w-full text-sm text-slate-500
               file:mr-4 file:py-2 file:px-4
-              file:border-0
-              file:text-sm file:font-semibold
-              file:bg-gray-100 file:text-gray-700
-              hover:file:bg-gray-200"
+              file:border-0 file:rounded-[7px]
+              file:text-sm file:font-medium
+              file:bg-slate-100 file:text-slate-700
+              hover:file:bg-slate-200"
           />
         </div>
       </div>

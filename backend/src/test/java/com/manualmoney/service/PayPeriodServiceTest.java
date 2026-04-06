@@ -162,8 +162,40 @@ class PayPeriodServiceTest {
         assertTrue(result.isPresent());
         assertEquals(new BigDecimal("500"), result.get().getAllocatedAmount());
         assertEquals(new BigDecimal("500"), result.get().getCurrentBalance());
-        assertEquals(bucketId, result.get().getBucketId());
+        assertEquals(bucketId, result.get().getCategoryId());
         assertEquals(1, payPeriod.getAllocations().size());
+    }
+
+    @Test
+    void addAllocation_shouldThrow_whenAmountExceedsUnallocated() {
+        PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("1000"));
+        Allocation existing = new Allocation(UUID.randomUUID(), new BigDecimal("800"));
+        payPeriod.getAllocations().add(existing);
+        UUID payPeriodId = payPeriod.getId();
+        when(repository.findPayPeriodById(payPeriodId)).thenReturn(Optional.of(payPeriod));
+
+        // Only 200 unallocated, trying to allocate 500
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                payPeriodService.addAllocation(payPeriodId, UUID.randomUUID(), new BigDecimal("500")));
+
+        assertTrue(ex.getMessage().contains("200"));
+        verify(repository, never()).savePayPeriod(any());
+    }
+
+    @Test
+    void addAllocation_shouldSucceed_whenAmountEqualsUnallocated() {
+        PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("1000"));
+        Allocation existing = new Allocation(UUID.randomUUID(), new BigDecimal("800"));
+        payPeriod.getAllocations().add(existing);
+        UUID payPeriodId = payPeriod.getId();
+        when(repository.findPayPeriodById(payPeriodId)).thenReturn(Optional.of(payPeriod));
+        when(repository.savePayPeriod(any())).thenAnswer(i -> i.getArgument(0));
+
+        // Exactly 200 unallocated, allocating exactly 200 — should succeed
+        Optional<Allocation> result = payPeriodService.addAllocation(payPeriodId, UUID.randomUUID(), new BigDecimal("200"));
+
+        assertTrue(result.isPresent());
+        assertEquals(new BigDecimal("200"), result.get().getAllocatedAmount());
     }
 
     @Test
@@ -191,6 +223,42 @@ class PayPeriodServiceTest {
         assertTrue(result.isPresent());
         assertEquals(new BigDecimal("600"), result.get().getAllocatedAmount());
         assertEquals(new BigDecimal("600"), result.get().getCurrentBalance());
+        verify(repository).save();
+    }
+
+    @Test
+    void updateAllocation_shouldThrow_whenIncreaseExceedsUnallocated() {
+        PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("1000"));
+        Allocation allocation = new Allocation(UUID.randomUUID(), new BigDecimal("500"));
+        payPeriod.getAllocations().add(allocation);
+        // Another allocation uses 400, leaving only 100 unallocated
+        Allocation other = new Allocation(UUID.randomUUID(), new BigDecimal("400"));
+        payPeriod.getAllocations().add(other);
+        UUID allocationId = allocation.getId();
+        when(repository.findAllocationById(allocationId)).thenReturn(Optional.of(allocation));
+        when(repository.findPayPeriodByAllocationId(allocationId)).thenReturn(Optional.of(payPeriod));
+
+        // Trying to increase from 500 to 700 (increase of 200, but only 100 unallocated)
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                payPeriodService.updateAllocation(allocationId, new BigDecimal("700")));
+
+        assertTrue(ex.getMessage().contains("100"));
+        verify(repository, never()).save();
+    }
+
+    @Test
+    void updateAllocation_shouldSucceed_whenDecreasing() {
+        PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("1000"));
+        Allocation allocation = new Allocation(UUID.randomUUID(), new BigDecimal("500"));
+        payPeriod.getAllocations().add(allocation);
+        UUID allocationId = allocation.getId();
+        when(repository.findAllocationById(allocationId)).thenReturn(Optional.of(allocation));
+
+        // Decreasing never needs to check unallocated
+        Optional<Allocation> result = payPeriodService.updateAllocation(allocationId, new BigDecimal("300"));
+
+        assertTrue(result.isPresent());
+        assertEquals(new BigDecimal("300"), result.get().getAllocatedAmount());
         verify(repository).save();
     }
 
@@ -250,7 +318,7 @@ class PayPeriodServiceTest {
         when(repository.findAllocationById(allocationId)).thenReturn(Optional.of(allocation));
         when(repository.findPayPeriodByAllocationId(allocationId)).thenReturn(Optional.of(payPeriod));
 
-        Optional<Transaction> result = payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3));
+        Optional<Transaction> result = payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3), null, null, null);
 
         assertTrue(result.isPresent());
         assertEquals("Coffee", result.get().getDescription());
@@ -266,7 +334,7 @@ class PayPeriodServiceTest {
         UUID allocationId = UUID.randomUUID();
         when(repository.findAllocationById(allocationId)).thenReturn(Optional.empty());
 
-        Optional<Transaction> result = payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3));
+        Optional<Transaction> result = payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3), null, null, null);
 
         assertFalse(result.isPresent());
         verify(repository, never()).save();
@@ -281,8 +349,8 @@ class PayPeriodServiceTest {
         when(repository.findAllocationById(allocationId)).thenReturn(Optional.of(allocation));
         when(repository.findPayPeriodByAllocationId(allocationId)).thenReturn(Optional.of(payPeriod));
 
-        payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3));
-        payPeriodService.addTransaction(allocationId, "Lunch", new BigDecimal("15"), LocalDate.of(2024, 1, 4));
+        payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3), null, null, null);
+        payPeriodService.addTransaction(allocationId, "Lunch", new BigDecimal("15"), LocalDate.of(2024, 1, 4), null, null, null);
 
         assertEquals(2, allocation.getTransactions().size());
         assertEquals(new BigDecimal("480"), allocation.getCurrentBalance());
@@ -306,7 +374,7 @@ class PayPeriodServiceTest {
         when(repository.findPayPeriodByAllocationId(allocationId)).thenReturn(Optional.of(payPeriod));
 
         assertThrows(IllegalArgumentException.class, () ->
-                payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 2, 1)));
+                payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 2, 1), null, null, null));
     }
 
     @Test
@@ -319,7 +387,7 @@ class PayPeriodServiceTest {
         when(repository.findPayPeriodByAllocationId(allocationId)).thenReturn(Optional.of(payPeriod));
 
         assertThrows(IllegalArgumentException.class, () ->
-                payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 1)));
+                payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 1), null, null, null));
     }
 
     @Test
@@ -333,12 +401,12 @@ class PayPeriodServiceTest {
 
         // Exact start date should be accepted
         Optional<Transaction> resultStart = payPeriodService.addTransaction(
-                allocationId, "Day 1 expense", new BigDecimal("10"), LocalDate.of(2024, 1, 1));
+                allocationId, "Day 1 expense", new BigDecimal("10"), LocalDate.of(2024, 1, 1), null, null, null);
         assertTrue(resultStart.isPresent());
 
         // Exact end date should be accepted
         Optional<Transaction> resultEnd = payPeriodService.addTransaction(
-                allocationId, "Last day expense", new BigDecimal("20"), LocalDate.of(2024, 1, 15));
+                allocationId, "Last day expense", new BigDecimal("20"), LocalDate.of(2024, 1, 15), null, null, null);
         assertTrue(resultEnd.isPresent());
     }
 
@@ -352,8 +420,8 @@ class PayPeriodServiceTest {
         when(repository.findPayPeriodByAllocationId(allocationId)).thenReturn(Optional.of(payPeriod));
 
         // Add out of order: Jan 5 then Jan 2
-        payPeriodService.addTransaction(allocationId, "Lunch", new BigDecimal("15"), LocalDate.of(2024, 1, 5));
-        payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 2));
+        payPeriodService.addTransaction(allocationId, "Lunch", new BigDecimal("15"), LocalDate.of(2024, 1, 5), null, null, null);
+        payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 2), null, null, null);
 
         assertEquals(2, allocation.getTransactions().size());
 
@@ -398,7 +466,7 @@ class PayPeriodServiceTest {
 
         // Update Coffee from $5 to $10
         Optional<Transaction> result = payPeriodService.updateTransaction(
-                transactionId, "Coffee (large)", new BigDecimal("10"), LocalDate.of(2024, 1, 3));
+                transactionId, "Coffee (large)", new BigDecimal("10"), LocalDate.of(2024, 1, 3), null, null, null);
 
         assertTrue(result.isPresent());
         assertEquals("Coffee (large)", result.get().getDescription());
@@ -422,7 +490,7 @@ class PayPeriodServiceTest {
         when(repository.findTransactionById(transactionId)).thenReturn(Optional.empty());
 
         Optional<Transaction> result = payPeriodService.updateTransaction(
-                transactionId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3));
+                transactionId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3), null, null, null);
 
         assertFalse(result.isPresent());
         verify(repository, never()).save();
@@ -438,7 +506,7 @@ class PayPeriodServiceTest {
         when(repository.findAllocationByTransactionId(transactionId)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () ->
-                payPeriodService.updateTransaction(transactionId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3)));
+                payPeriodService.updateTransaction(transactionId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3), null, null, null));
     }
 
     @Test
@@ -458,7 +526,7 @@ class PayPeriodServiceTest {
         when(repository.findPayPeriodByAllocationId(allocation.getId())).thenReturn(Optional.of(payPeriod));
 
         assertThrows(IllegalArgumentException.class, () ->
-                payPeriodService.updateTransaction(transactionId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 2, 1)));
+                payPeriodService.updateTransaction(transactionId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 2, 1), null, null, null));
     }
 
     @Test
@@ -481,7 +549,7 @@ class PayPeriodServiceTest {
         when(repository.findPayPeriodByAllocationId(allocation.getId())).thenReturn(Optional.of(payPeriod));
 
         // Move Coffee from Jan 3 to Jan 10 (after Lunch on Jan 5) -- order should swap
-        payPeriodService.updateTransaction(transactionId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 10));
+        payPeriodService.updateTransaction(transactionId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 10), null, null, null);
 
         // After sort: Lunch (Jan 5) should be first, Coffee (Jan 10) should be second
         assertEquals("Lunch", allocation.getTransactions().get(0).getDescription());
@@ -638,7 +706,7 @@ class PayPeriodServiceTest {
         when(repository.findPayPeriodByAllocationId(allocationId)).thenReturn(Optional.empty());
 
         assertThrows(RuntimeException.class, () ->
-                payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3)));
+                payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3), null, null, null));
     }
 
     @Test
@@ -650,7 +718,7 @@ class PayPeriodServiceTest {
         when(repository.findAllocationById(allocationId)).thenReturn(Optional.of(allocation));
         when(repository.findPayPeriodByAllocationId(allocationId)).thenReturn(Optional.of(payPeriod));
 
-        payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3));
+        payPeriodService.addTransaction(allocationId, "Coffee", new BigDecimal("5"), LocalDate.of(2024, 1, 3), null, null, null);
 
         verify(repository).save();
     }

@@ -1,5 +1,7 @@
 package com.manualmoney.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -8,7 +10,10 @@ import java.util.UUID;
 
 public class Allocation {
     private UUID id;
-    private UUID bucketId;
+
+    @JsonAlias("bucketId")
+    private UUID categoryId;
+
     private BigDecimal allocatedAmount;
     private BigDecimal currentBalance;
     private List<Transaction> transactions;
@@ -22,66 +27,31 @@ public class Allocation {
         this.updatedAt = LocalDateTime.now();
     }
 
-    public Allocation(UUID bucketId, BigDecimal allocatedAmount) {
+    public Allocation(UUID categoryId, BigDecimal allocatedAmount) {
         this();
-        this.bucketId = bucketId;
+        this.categoryId = categoryId;
         this.allocatedAmount = allocatedAmount;
         this.currentBalance = allocatedAmount;
     }
 
-    public UUID getId() {
-        return id;
-    }
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
 
-    public void setId(UUID id) {
-        this.id = id;
-    }
+    public UUID getCategoryId() { return categoryId; }
+    public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
 
-    public UUID getBucketId() {
-        return bucketId;
-    }
+    public BigDecimal getAllocatedAmount() { return allocatedAmount; }
+    public void setAllocatedAmount(BigDecimal allocatedAmount) { this.allocatedAmount = allocatedAmount; }
 
-    public void setBucketId(UUID bucketId) {
-        this.bucketId = bucketId;
-    }
+    public BigDecimal getCurrentBalance() { return currentBalance; }
+    public void setCurrentBalance(BigDecimal currentBalance) { this.currentBalance = currentBalance; }
 
-    public BigDecimal getAllocatedAmount() {
-        return allocatedAmount;
-    }
+    public List<Transaction> getTransactions() { return transactions; }
+    public void setTransactions(List<Transaction> transactions) { this.transactions = transactions; }
 
-    public void setAllocatedAmount(BigDecimal allocatedAmount) {
-        this.allocatedAmount = allocatedAmount;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public BigDecimal getCurrentBalance() {
-        return currentBalance;
-    }
-
-    public void setCurrentBalance(BigDecimal currentBalance) {
-        this.currentBalance = currentBalance;
-    }
-
-    public List<Transaction> getTransactions() {
-        return transactions;
-    }
-
-    public void setTransactions(List<Transaction> transactions) {
-        this.transactions = transactions;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

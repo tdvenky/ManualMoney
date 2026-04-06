@@ -171,7 +171,7 @@ class PayPeriodControllerTest {
         when(payPeriodService.addAllocation(eq(payPeriodId), eq(bucketId), any(BigDecimal.class)))
                 .thenReturn(Optional.of(allocation));
 
-        String requestBody = String.format("{\"bucketId\": \"%s\", \"allocatedAmount\": 500}", bucketId);
+        String requestBody = String.format("{\"categoryId\": \"%s\", \"allocatedAmount\": 500}", bucketId);
 
         mockMvc.perform(post("/api/payperiods/" + payPeriodId + "/allocations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -187,7 +187,7 @@ class PayPeriodControllerTest {
         when(payPeriodService.addAllocation(eq(payPeriodId), eq(bucketId), any(BigDecimal.class)))
                 .thenReturn(Optional.empty());
 
-        String requestBody = String.format("{\"bucketId\": \"%s\", \"allocatedAmount\": 500}", bucketId);
+        String requestBody = String.format("{\"categoryId\": \"%s\", \"allocatedAmount\": 500}", bucketId);
 
         mockMvc.perform(post("/api/payperiods/" + payPeriodId + "/allocations")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -235,7 +235,7 @@ class PayPeriodControllerTest {
         UUID allocationId = UUID.randomUUID();
         Transaction transaction = new Transaction("Coffee", new BigDecimal("5"),
                 LocalDate.of(2024, 1, 3), new BigDecimal("500"), new BigDecimal("495"));
-        when(payPeriodService.addTransaction(eq(allocationId), eq("Coffee"), any(BigDecimal.class), any(LocalDate.class)))
+        when(payPeriodService.addTransaction(eq(allocationId), eq("Coffee"), any(BigDecimal.class), any(LocalDate.class), any(), any(), any()))
                 .thenReturn(Optional.of(transaction));
 
         String requestBody = "{\"description\": \"Coffee\", \"amount\": 5, \"date\": \"2024-01-03\"}";
@@ -253,7 +253,7 @@ class PayPeriodControllerTest {
     @Test
     void addTransaction_shouldReturn404_whenAllocationNotFound() throws Exception {
         UUID allocationId = UUID.randomUUID();
-        when(payPeriodService.addTransaction(eq(allocationId), eq("Coffee"), any(BigDecimal.class), any(LocalDate.class)))
+        when(payPeriodService.addTransaction(eq(allocationId), eq("Coffee"), any(BigDecimal.class), any(LocalDate.class), any(), any(), any()))
                 .thenReturn(Optional.empty());
 
         String requestBody = "{\"description\": \"Coffee\", \"amount\": 5, \"date\": \"2024-01-03\"}";
@@ -267,7 +267,7 @@ class PayPeriodControllerTest {
     @Test
     void addTransaction_shouldReturn400_whenDateOutsidePayPeriod() throws Exception {
         UUID allocationId = UUID.randomUUID();
-        when(payPeriodService.addTransaction(eq(allocationId), eq("Coffee"), any(BigDecimal.class), any(LocalDate.class)))
+        when(payPeriodService.addTransaction(eq(allocationId), eq("Coffee"), any(BigDecimal.class), any(LocalDate.class), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Transaction date must be between 2024-01-01 and 2024-01-15"));
 
         String requestBody = "{\"description\": \"Coffee\", \"amount\": 5, \"date\": \"2024-02-01\"}";
@@ -287,7 +287,7 @@ class PayPeriodControllerTest {
         Transaction transaction = new Transaction("Lunch", new BigDecimal("10"),
                 LocalDate.of(2024, 1, 5), new BigDecimal("500"), new BigDecimal("490"));
         transaction.setId(transactionId);
-        when(payPeriodService.updateTransaction(eq(transactionId), eq("Lunch"), any(BigDecimal.class), any(LocalDate.class)))
+        when(payPeriodService.updateTransaction(eq(transactionId), eq("Lunch"), any(BigDecimal.class), any(LocalDate.class), any(), any(), any()))
                 .thenReturn(Optional.of(transaction));
 
         String requestBody = "{\"description\": \"Lunch\", \"amount\": 10, \"date\": \"2024-01-05\"}";
@@ -305,7 +305,7 @@ class PayPeriodControllerTest {
     @Test
     void updateTransaction_shouldReturn404_whenNotFound() throws Exception {
         UUID transactionId = UUID.randomUUID();
-        when(payPeriodService.updateTransaction(eq(transactionId), eq("Lunch"), any(BigDecimal.class), any(LocalDate.class)))
+        when(payPeriodService.updateTransaction(eq(transactionId), eq("Lunch"), any(BigDecimal.class), any(LocalDate.class), any(), any(), any()))
                 .thenReturn(Optional.empty());
 
         String requestBody = "{\"description\": \"Lunch\", \"amount\": 10, \"date\": \"2024-01-05\"}";
@@ -319,7 +319,7 @@ class PayPeriodControllerTest {
     @Test
     void updateTransaction_shouldReturn400_whenDateOutsidePayPeriod() throws Exception {
         UUID transactionId = UUID.randomUUID();
-        when(payPeriodService.updateTransaction(eq(transactionId), eq("Lunch"), any(BigDecimal.class), any(LocalDate.class)))
+        when(payPeriodService.updateTransaction(eq(transactionId), eq("Lunch"), any(BigDecimal.class), any(LocalDate.class), any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Transaction date must be between 2024-01-01 and 2024-01-15"));
 
         String requestBody = "{\"description\": \"Lunch\", \"amount\": 10, \"date\": \"2024-02-01\"}";

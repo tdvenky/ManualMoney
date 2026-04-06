@@ -40,15 +40,15 @@ class DataControllerTest {
     @Test
     void exportData_shouldReturnAppData() throws Exception {
         AppData appData = new AppData();
-        appData.getBuckets().add(new Bucket("Groceries", BucketType.EXPENSE));
+        appData.getCategories().add(new Category("Groceries", CategoryType.EXPENSE));
         appData.getPayPeriods().add(new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2000")));
         when(dataService.exportData()).thenReturn(appData);
 
         mockMvc.perform(get("/api/export"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.buckets.length()").value(1))
-                .andExpect(jsonPath("$.buckets[0].name").value("Groceries"))
-                .andExpect(jsonPath("$.buckets[0].type").value("EXPENSE"))
+                .andExpect(jsonPath("$.categories.length()").value(1))
+                .andExpect(jsonPath("$.categories[0].name").value("Groceries"))
+                .andExpect(jsonPath("$.categories[0].type").value("EXPENSE"))
                 .andExpect(jsonPath("$.payPeriods.length()").value(1))
                 .andExpect(jsonPath("$.payPeriods[0].amount").value(2000));
 
@@ -62,7 +62,7 @@ class DataControllerTest {
 
         mockMvc.perform(get("/api/export"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.buckets.length()").value(0))
+                .andExpect(jsonPath("$.categories.length()").value(0))
                 .andExpect(jsonPath("$.payPeriods.length()").value(0));
 
         verify(dataService).exportData();
@@ -71,17 +71,17 @@ class DataControllerTest {
     @Test
     void exportData_shouldReturnMultipleBucketsAndPayPeriods() throws Exception {
         AppData appData = new AppData();
-        appData.getBuckets().add(new Bucket("Groceries", BucketType.EXPENSE));
-        appData.getBuckets().add(new Bucket("Emergency Fund", BucketType.SAVINGS));
+        appData.getCategories().add(new Category("Groceries", CategoryType.EXPENSE));
+        appData.getCategories().add(new Category("Emergency Fund", CategoryType.SAVINGS));
         appData.getPayPeriods().add(new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2000")));
         appData.getPayPeriods().add(new PayPeriod(LocalDate.of(2024, 1, 16), LocalDate.of(2024, 1, 31), new BigDecimal("2500")));
         when(dataService.exportData()).thenReturn(appData);
 
         mockMvc.perform(get("/api/export"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.buckets.length()").value(2))
-                .andExpect(jsonPath("$.buckets[0].name").value("Groceries"))
-                .andExpect(jsonPath("$.buckets[1].name").value("Emergency Fund"))
+                .andExpect(jsonPath("$.categories.length()").value(2))
+                .andExpect(jsonPath("$.categories[0].name").value("Groceries"))
+                .andExpect(jsonPath("$.categories[1].name").value("Emergency Fund"))
                 .andExpect(jsonPath("$.payPeriods.length()").value(2));
     }
 
