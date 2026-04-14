@@ -426,7 +426,9 @@ export function PayPeriodDetailPage() {
                     .filter(([p]) => priorityTotals[p] != null)
                     .map(([p, label]) => (
                       <tr key={p} className="border-b border-[0.5px] border-slate-50">
-                        <td className="py-1.5 text-slate-700">{label}</td>
+                        <td className="py-1.5">
+                          <span className={`text-[11px] px-1.5 py-0.5 rounded ${priorityBadge(p)}`}>{label}</span>
+                        </td>
                         <td className="py-1.5 text-right font-mono font-[500] text-slate-800">{fmt(priorityTotals[p]!)}</td>
                       </tr>
                     ))}
