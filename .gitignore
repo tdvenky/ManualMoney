@@ -17,3 +17,7 @@ frontend/coverage/
 .DS_Store
 Thumbs.db
 nul
+
+# Claude Code (personal overrides — not for team)
+CLAUDE.local.md
+.claude/settings.local.json
