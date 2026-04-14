@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { PayPeriod } from '../types';
+import { PayPeriodForm } from '../components';
 import * as api from '../api/client';
 
 export function PayPeriodsPage() {
+  const navigate = useNavigate();
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     api.getPayPeriods()
@@ -17,9 +21,6 @@ export function PayPeriodsPage() {
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
-
-  const fmtDate = (d: string) =>
-    new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   const fmtDateShort = (d: string) =>
     new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -32,6 +33,16 @@ export function PayPeriodsPage() {
 
   const getTotalRemaining = (pp: PayPeriod) =>
     pp.allocations.reduce((s, a) => s + a.currentBalance, 0);
+
+  const handleCreate = async (payDate: string, endDate: string, amount: number) => {
+    try {
+      const newPayPeriod = await api.createPayPeriod({ payDate, endDate, amount });
+      setShowNewModal(false);
+      navigate(`/payperiods/${newPayPeriod.id}`);
+    } catch {
+      setCreateError('Failed to create pay period');
+    }
+  };
 
   const handleDelete = async (pp: PayPeriod) => {
     const label = `${fmtDateShort(pp.payDate)} – ${fmtDateShort(pp.endDate)}`;
@@ -66,12 +77,12 @@ export function PayPeriodsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-lg font-bold text-slate-800">Pay Periods</h1>
-        <Link
-          to="/payperiods/new"
+        <button
+          onClick={() => { setCreateError(null); setShowNewModal(true); }}
           className="px-4 py-2 bg-emerald-600 text-white text-sm hover:bg-emerald-700 rounded-[7px]"
         >
           New Pay Period
-        </Link>
+        </button>
       </div>
 
       {sorted.length === 0 ? (
@@ -133,6 +144,25 @@ export function PayPeriodsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* New Pay Period Modal */}
+      {showNewModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[10px] border-[0.5px] border-slate-200 p-6 w-full max-w-sm space-y-4 shadow-lg">
+            <h2 className="text-base font-semibold text-slate-800">New Pay Period</h2>
+            {createError && (
+              <div className="bg-red-50 border-[0.5px] border-red-200 text-red-700 px-3 py-2 rounded-[7px] text-sm">
+                {createError}
+              </div>
+            )}
+            <PayPeriodForm
+              onSubmit={handleCreate}
+              submitLabel="Create Pay Period"
+              onCancel={() => setShowNewModal(false)}
+            />
+          </div>
         </div>
       )}
     </div>
