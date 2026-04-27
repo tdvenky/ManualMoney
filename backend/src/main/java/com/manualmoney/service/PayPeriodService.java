@@ -90,8 +90,7 @@ public class PayPeriodService {
                 }
             }
             allocation.setAllocatedAmount(allocatedAmount);
-            allocation.setCurrentBalance(allocation.getCurrentBalance().add(difference));
-            allocation.setUpdatedAt(LocalDateTime.now());
+            recalculateBalance(allocation);
             repository.save();
             return allocation;
         });
@@ -106,16 +105,7 @@ public class PayPeriodService {
                     subCategoryId, priority, notes);
             allocation.getTransactions().add(transaction);
 
-            allocation.getTransactions().sort(Comparator.comparing(Transaction::getDate));
-            BigDecimal runningBalance = allocation.getAllocatedAmount();
-            for (Transaction t : allocation.getTransactions()) {
-                t.setPreviousBalance(runningBalance);
-                runningBalance = runningBalance.subtract(t.getAmount());
-                t.setNewBalance(runningBalance);
-            }
-
-            allocation.setCurrentBalance(runningBalance);
-            allocation.setUpdatedAt(LocalDateTime.now());
+            recalculateBalance(allocation);
             repository.save();
             return transaction;
         });
@@ -137,16 +127,7 @@ public class PayPeriodService {
             transaction.setNotes(notes);
             transaction.setUpdatedAt(LocalDateTime.now());
 
-            allocation.getTransactions().sort(Comparator.comparing(Transaction::getDate));
-            BigDecimal runningBalance = allocation.getAllocatedAmount();
-            for (Transaction t : allocation.getTransactions()) {
-                t.setPreviousBalance(runningBalance);
-                runningBalance = runningBalance.subtract(t.getAmount());
-                t.setNewBalance(runningBalance);
-            }
-
-            allocation.setCurrentBalance(runningBalance);
-            allocation.setUpdatedAt(LocalDateTime.now());
+            recalculateBalance(allocation);
             repository.save();
             return transaction;
         });
@@ -162,14 +143,57 @@ public class PayPeriodService {
         boolean removed = allocation.getTransactions().removeIf(t -> t.getId().equals(transactionId));
 
         if (removed) {
-            BigDecimal runningBalance = allocation.getAllocatedAmount();
-            for (Transaction t : allocation.getTransactions()) {
-                t.setPreviousBalance(runningBalance);
-                runningBalance = runningBalance.subtract(t.getAmount());
-                t.setNewBalance(runningBalance);
-            }
-            allocation.setCurrentBalance(runningBalance);
-            allocation.setUpdatedAt(LocalDateTime.now());
+            recalculateBalance(allocation);
+            repository.save();
+        }
+
+        return removed;
+    }
+
+    public Optional<SavingsTransfer> addSavingsTransfer(UUID allocationId, BigDecimal amount,
+                                                         LocalDate date, String notes) {
+        return repository.findAllocationById(allocationId).map(allocation -> {
+            validateSavingsTransferDate(allocationId, date);
+
+            SavingsTransfer transfer = new SavingsTransfer(amount, date, notes);
+            allocation.getSavingsTransfers().add(transfer);
+
+            recalculateBalance(allocation);
+            repository.save();
+            return transfer;
+        });
+    }
+
+    public Optional<SavingsTransfer> updateSavingsTransfer(UUID transferId, BigDecimal amount,
+                                                            LocalDate date, String notes) {
+        return repository.findSavingsTransferById(transferId).map(transfer -> {
+            Allocation allocation = repository.findAllocationBySavingsTransferId(transferId)
+                    .orElseThrow(() -> new RuntimeException("Allocation not found"));
+
+            validateSavingsTransferDate(allocation.getId(), date);
+
+            transfer.setAmount(amount);
+            transfer.setDate(date);
+            transfer.setNotes(notes);
+            transfer.setUpdatedAt(LocalDateTime.now());
+
+            recalculateBalance(allocation);
+            repository.save();
+            return transfer;
+        });
+    }
+
+    public boolean deleteSavingsTransfer(UUID transferId) {
+        Optional<Allocation> allocationOpt = repository.findAllocationBySavingsTransferId(transferId);
+        if (!allocationOpt.isPresent()) {
+            return false;
+        }
+
+        Allocation allocation = allocationOpt.get();
+        boolean removed = allocation.getSavingsTransfers().removeIf(s -> s.getId().equals(transferId));
+
+        if (removed) {
+            recalculateBalance(allocation);
             repository.save();
         }
 
@@ -187,6 +211,9 @@ public class PayPeriodService {
         if (!allocation.getTransactions().isEmpty()) {
             throw new IllegalArgumentException("Cannot delete an allocation that has transactions");
         }
+        if (!allocation.getSavingsTransfers().isEmpty()) {
+            throw new IllegalArgumentException("Cannot delete an allocation that has savings recorded");
+        }
         payPeriod.getAllocations().removeIf(a -> a.getId().equals(allocationId));
         repository.savePayPeriod(payPeriod);
         return true;
@@ -200,12 +227,36 @@ public class PayPeriodService {
         return false;
     }
 
+    private void recalculateBalance(Allocation allocation) {
+        allocation.getTransactions().sort(Comparator.comparing(Transaction::getDate));
+        BigDecimal runningBalance = allocation.getAllocatedAmount();
+        for (Transaction t : allocation.getTransactions()) {
+            t.setPreviousBalance(runningBalance);
+            runningBalance = runningBalance.subtract(t.getAmount());
+            t.setNewBalance(runningBalance);
+        }
+        BigDecimal savingsTransferred = allocation.getSavingsTransfers().stream()
+                .map(SavingsTransfer::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        allocation.setCurrentBalance(runningBalance.subtract(savingsTransferred));
+        allocation.setUpdatedAt(LocalDateTime.now());
+    }
+
     private void validateTransactionDate(UUID allocationId, LocalDate date) {
         PayPeriod payPeriod = repository.findPayPeriodByAllocationId(allocationId)
                 .orElseThrow(() -> new RuntimeException("Pay period not found for allocation"));
         if (date.isBefore(payPeriod.getPayDate()) || date.isAfter(payPeriod.getEndDate())) {
             throw new IllegalArgumentException(
                     "Transaction date must be between " + payPeriod.getPayDate() + " and " + payPeriod.getEndDate());
+        }
+    }
+
+    private void validateSavingsTransferDate(UUID allocationId, LocalDate date) {
+        PayPeriod payPeriod = repository.findPayPeriodByAllocationId(allocationId)
+                .orElseThrow(() -> new RuntimeException("Pay period not found for allocation"));
+        if (date.isBefore(payPeriod.getPayDate()) || date.isAfter(payPeriod.getEndDate())) {
+            throw new IllegalArgumentException(
+                    "Transfer date must be between " + payPeriod.getPayDate() + " and " + payPeriod.getEndDate());
         }
     }
 }

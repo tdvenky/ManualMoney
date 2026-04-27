@@ -57,6 +57,7 @@ const mockPayPeriod: PayPeriod = {
           updatedAt: '',
         },
       ],
+      savingsTransfers: [],
       createdAt: '',
       updatedAt: '',
     },
@@ -319,6 +320,7 @@ describe('PayPeriodDetailPage', () => {
       allocatedAmount: 300,
       currentBalance: 300,
       transactions: [],
+      savingsTransfers: [],
       createdAt: '',
       updatedAt: '',
     });

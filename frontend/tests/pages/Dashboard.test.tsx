@@ -28,6 +28,7 @@ const mockActivePayPeriod: PayPeriod = {
       allocatedAmount: 500,
       currentBalance: 450,
       transactions: [],
+      savingsTransfers: [],
       createdAt: '',
       updatedAt: '',
     },

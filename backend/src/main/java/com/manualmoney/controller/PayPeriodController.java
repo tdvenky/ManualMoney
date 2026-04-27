@@ -3,6 +3,7 @@ package com.manualmoney.controller;
 import com.manualmoney.model.Allocation;
 import com.manualmoney.model.PayPeriod;
 import com.manualmoney.model.Priority;
+import com.manualmoney.model.SavingsTransfer;
 import com.manualmoney.model.Transaction;
 import com.manualmoney.service.PayPeriodService;
 import org.springframework.http.HttpStatus;
@@ -87,10 +88,14 @@ public class PayPeriodController {
 
     @DeleteMapping("/allocations/{id}")
     public ResponseEntity<Void> deleteAllocation(@PathVariable UUID id) {
-        if (payPeriodService.deleteAllocation(id)) {
-            return ResponseEntity.noContent().build();
+        try {
+            if (payPeriodService.deleteAllocation(id)) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.notFound().build();
     }
 
     @PutMapping("/allocations/{id}")
@@ -119,6 +124,30 @@ public class PayPeriodController {
     @DeleteMapping("/transactions/{id}")
     public ResponseEntity<Void> deleteTransaction(@PathVariable UUID id) {
         if (payPeriodService.deleteTransaction(id)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/allocations/{id}/savingstransfers")
+    public ResponseEntity<SavingsTransfer> addSavingsTransfer(@PathVariable UUID id,
+                                                               @RequestBody SavingsTransferRequest request) {
+        return payPeriodService.addSavingsTransfer(id, request.getAmount(), request.getDate(), request.getNotes())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/savingstransfers/{id}")
+    public ResponseEntity<SavingsTransfer> updateSavingsTransfer(@PathVariable UUID id,
+                                                                  @RequestBody SavingsTransferRequest request) {
+        return payPeriodService.updateSavingsTransfer(id, request.getAmount(), request.getDate(), request.getNotes())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/savingstransfers/{id}")
+    public ResponseEntity<Void> deleteSavingsTransfer(@PathVariable UUID id) {
+        if (payPeriodService.deleteSavingsTransfer(id)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
@@ -207,6 +236,19 @@ public class PayPeriodController {
         public void setSubCategoryId(UUID subCategoryId) { this.subCategoryId = subCategoryId; }
         public Priority getPriority() { return priority; }
         public void setPriority(Priority priority) { this.priority = priority; }
+        public String getNotes() { return notes; }
+        public void setNotes(String notes) { this.notes = notes; }
+    }
+
+    public static class SavingsTransferRequest {
+        private BigDecimal amount;
+        private LocalDate date;
+        private String notes;
+
+        public BigDecimal getAmount() { return amount; }
+        public void setAmount(BigDecimal amount) { this.amount = amount; }
+        public LocalDate getDate() { return date; }
+        public void setDate(LocalDate date) { this.date = date; }
         public String getNotes() { return notes; }
         public void setNotes(String notes) { this.notes = notes; }
     }

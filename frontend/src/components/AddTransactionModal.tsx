@@ -45,6 +45,8 @@ export function AddTransactionModal({ payPeriod, allocations, categories, subCat
   const [error, setError] = useState<string | null>(null);
 
   const allocationForCategory = allocations.find(a => a.categoryId === categoryId);
+  const selectedCategory = categories.find(c => c.id === categoryId);
+  const isSavingsCategory = selectedCategory?.type === 'SAVINGS';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +118,15 @@ export function AddTransactionModal({ payPeriod, allocations, categories, subCat
               })}
             </select>
           </div>
+
+          {isSavingsCategory && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border-[0.5px] border-amber-200 rounded-[7px]">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="text-[11px] text-amber-700">This will be recorded as dipping into savings. To record a transfer to HYSA or investments, use <strong>Record Savings</strong> in the Categories section.</span>
+            </div>
+          )}
 
           <div>
             <label className="block text-[11px] font-medium text-slate-500 mb-1">Sub-Category</label>

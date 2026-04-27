@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import type { PayPeriod, Category, SubCategory, Transaction, Priority } from '../types';
+import { useParams } from 'react-router-dom';
+import type { PayPeriod, Category, SubCategory, Transaction, SavingsTransfer, Priority } from '../types';
 import { PRIORITY_LABELS } from '../types';
 import { AddTransactionModal } from '../components/AddTransactionModal';
+import { SavingsTransferModal } from '../components/SavingsTransferModal';
 import * as api from '../api/client';
 
 const CATEGORY_COLORS = [
@@ -40,6 +41,9 @@ export function PayPeriodDetailPage() {
   const [filterCategoryId, setFilterCategoryId] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  // Savings transfer modal state
+  const [savingsTransferAllocationId, setSavingsTransferAllocationId] = useState<string | null>(null);
+  const [editingSavingsTransfer, setEditingSavingsTransfer] = useState<(SavingsTransfer & { allocationId: string }) | null>(null);
 
   useEffect(() => {
     if (id) loadData();
@@ -124,6 +128,21 @@ export function PayPeriodDetailPage() {
 
   const grandTotal = allTransactions.reduce((s, t) => s + t.amount, 0);
 
+  const savingsSummary = useMemo(() => {
+    if (!payPeriod) return [];
+    return payPeriod.allocations
+      .filter(a => {
+        const cat = categories.find(c => c.id === a.categoryId);
+        return cat?.type === 'SAVINGS';
+      })
+      .map(a => ({
+        categoryId: a.categoryId,
+        saved: (a.savingsTransfers ?? []).reduce((s, t) => s + t.amount, 0),
+        spent: a.transactions.reduce((s, t) => s + t.amount, 0),
+      }))
+      .filter(row => row.saved > 0 || row.spent > 0);
+  }, [payPeriod, categories]);
+
   const handleAddTransaction = async (allocationId: string, data: {
     description: string; amount: number; date: string;
     subCategoryId: string; priority: Priority; notes?: string;
@@ -143,6 +162,26 @@ export function PayPeriodDetailPage() {
       await api.addTransaction(allocationId, data);
     }
     await loadData();
+  };
+
+  const handleAddSavingsTransfer = async (data: { amount: number; date: string; notes?: string }) => {
+    await api.addSavingsTransfer(savingsTransferAllocationId!, data);
+    await loadData();
+  };
+
+  const handleEditSavingsTransfer = async (data: { amount: number; date: string; notes?: string }) => {
+    await api.updateSavingsTransfer(editingSavingsTransfer!.id, data);
+    await loadData();
+  };
+
+  const handleDeleteSavingsTransfer = async (transferId: string) => {
+    if (!confirm('Delete this savings transfer?')) return;
+    try {
+      await api.deleteSavingsTransfer(transferId);
+      await loadData();
+    } catch {
+      setError('Failed to delete savings transfer');
+    }
   };
 
   const handleClosePayPeriod = async () => {
@@ -239,9 +278,24 @@ export function PayPeriodDetailPage() {
   const allocatedCategoryIds = new Set(payPeriod.allocations.map(a => a.categoryId));
   const availableCategories = categories.filter(c => !allocatedCategoryIds.has(c.id));
 
+  // All savings transfers across all savings allocations, sorted by date desc
+  const allSavingsTransfers = payPeriod.allocations
+    .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
+    .flatMap(a => (a.savingsTransfers ?? []).map(s => ({ ...s, allocationId: a.id, categoryId: a.categoryId })))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
   const renderAllocationTable = (type: 'EXPENSE' | 'SAVINGS') => {
     const allocs = payPeriod.allocations.filter(a => getCat(a.categoryId)?.type === type);
     if (allocs.length === 0) return null;
+
+    const totalAllocatedForType = allocs.reduce((s, a) => s + a.allocatedAmount, 0);
+    const totalSpentForType = allocs.reduce((s, a) => s + a.transactions.reduce((ts, t) => ts + t.amount, 0), 0);
+    const totalSaved = type === 'SAVINGS'
+      ? allocs.reduce((s, a) => s + (a.savingsTransfers ?? []).reduce((ss, t) => ss + t.amount, 0), 0)
+      : 0;
+    const totalPositiveRemaining = allocs.filter(a => a.currentBalance >= 0).reduce((s, a) => s + a.currentBalance, 0);
+    const totalOverspent = allocs.filter(a => a.currentBalance < 0).reduce((s, a) => s + Math.abs(a.currentBalance), 0);
+
     return (
       <div className="mb-4">
         <div className="text-[11px] font-bold text-slate-500 tracking-wider mb-1">{type === 'EXPENSE' ? 'EXPENSES' : 'SAVINGS'}</div>
@@ -250,14 +304,18 @@ export function PayPeriodDetailPage() {
             <tr className="border-b border-[0.5px] border-slate-200 text-slate-500 text-xs">
               <th className="text-left py-1 font-medium">Category</th>
               <th className="text-right py-1 font-medium">Allocated</th>
+              {type === 'SAVINGS' && <th className="text-right py-1 font-medium">Saved</th>}
               <th className="text-right py-1 font-medium">Spent</th>
               <th className="text-right py-1 font-medium">Remaining</th>
-              {isActive && <th className="w-20"></th>}
+              {isActive && <th className="w-32"></th>}
             </tr>
           </thead>
           <tbody>
             {allocs.map(a => {
-              const spent = a.allocatedAmount - a.currentBalance;
+              const savedAmount = type === 'SAVINGS'
+                ? (a.savingsTransfers ?? []).reduce((s, t) => s + t.amount, 0)
+                : 0;
+              const spent = a.transactions.reduce((s, t) => s + t.amount, 0);
               const isEditing = editingAllocationId === a.id;
               return (
                 <tr key={a.id} className="border-b border-[0.5px] border-slate-100 group">
@@ -274,12 +332,15 @@ export function PayPeriodDetailPage() {
                       />
                     ) : fmt(a.allocatedAmount)}
                   </td>
+                  {type === 'SAVINGS' && (
+                    <td className="py-2.5 text-right font-mono text-emerald-600">{fmt(savedAmount)}</td>
+                  )}
                   <td className="py-2.5 text-right font-mono text-slate-800">{fmt(spent)}</td>
                   <td className={`py-2.5 text-right font-mono ${a.currentBalance < 0 ? 'text-red-600' : 'text-slate-800'}`}>
                     {fmt(a.currentBalance)}
                   </td>
                   {isActive && (
-                    <td className="py-2.5 pl-4 pr-2 text-right">
+                    <td className="py-2.5 pl-2 pr-2 text-right">
                       {isEditing ? (
                         <div className="flex gap-1 justify-end">
                           <button onClick={() => handleSaveAllocation(a.id)} className="text-xs text-emerald-600 hover:underline">Save</button>
@@ -287,6 +348,14 @@ export function PayPeriodDetailPage() {
                         </div>
                       ) : (
                         <div className="flex gap-3 justify-end items-center">
+                          {type === 'SAVINGS' && (
+                            <button
+                              onClick={() => setSavingsTransferAllocationId(a.id)}
+                              className="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-[0.5px] border-emerald-200 whitespace-nowrap"
+                            >
+                              Record Savings
+                            </button>
+                          )}
                           <button
                             onClick={() => { setEditingAllocationId(a.id); setEditingAmount(String(a.allocatedAmount)); }}
                             className="text-slate-400 hover:text-emerald-600"
@@ -298,9 +367,9 @@ export function PayPeriodDetailPage() {
                           </button>
                           <button
                             onClick={() => handleDeleteAllocation(a.id)}
-                            disabled={a.transactions.length > 0}
-                            className={`${a.transactions.length > 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-red-500'}`}
-                            title={a.transactions.length > 0 ? 'Cannot delete: has transactions' : 'Delete'}
+                            disabled={a.transactions.length > 0 || (a.savingsTransfers ?? []).length > 0}
+                            className={`${a.transactions.length > 0 || (a.savingsTransfers ?? []).length > 0 ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-red-500'}`}
+                            title={a.transactions.length > 0 ? 'Cannot delete: has transactions' : (a.savingsTransfers ?? []).length > 0 ? 'Cannot delete: has savings recorded' : 'Delete'}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -314,10 +383,82 @@ export function PayPeriodDetailPage() {
               );
             })}
           </tbody>
+          <tfoot>
+            <tr className="bg-slate-200 border-t border-slate-300 [&>td:first-child]:rounded-l-[6px] [&>td:last-child]:rounded-r-[6px]">
+              <td className="py-2 px-1 font-semibold text-slate-800">Total</td>
+              <td className="py-2 px-1 text-right font-mono font-semibold text-slate-800">{fmt(totalAllocatedForType)}</td>
+              {type === 'SAVINGS' && (
+                <td className="py-2 px-1 text-right font-mono font-semibold text-emerald-600">{fmt(totalSaved)}</td>
+              )}
+              <td className="py-2 px-1 text-right font-mono font-semibold">
+                <div className="text-slate-800">{fmt(totalSpentForType)}</div>
+                {totalOverspent > 0 && (
+                  <div className="text-[11px] text-red-500 font-normal">−{fmt(totalOverspent)} overspent</div>
+                )}
+              </td>
+              <td className="py-2 px-1 text-right font-mono font-semibold text-slate-800">{fmt(totalPositiveRemaining)}</td>
+              {isActive && <td />}
+            </tr>
+          </tfoot>
         </table>
+
+        {/* Savings transfer history inline under the SAVINGS table */}
+        {type === 'SAVINGS' && allSavingsTransfers.length > 0 && (
+          <div className="mt-3">
+            <div className="text-[11px] font-medium text-slate-400 mb-1.5">TRANSFER HISTORY</div>
+            <div className="rounded-[8px] border-[0.5px] border-emerald-100 overflow-hidden">
+              {allSavingsTransfers.map(s => (
+                <div key={s.id} className="flex items-center gap-3 px-3 py-2 border-b border-[0.5px] border-emerald-50 last:border-0 hover:bg-emerald-50 group">
+                  <div className="w-[30px] h-[30px] rounded-[6px] flex items-center justify-center shrink-0 bg-emerald-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-slate-700">{getCat(s.categoryId)?.name ?? '—'}</div>
+                    <div className="text-[11px] text-slate-400">{fmtDateShort(s.date)}{s.notes ? ` · ${s.notes}` : ''}</div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-mono text-sm text-emerald-600">{fmt(s.amount)}</span>
+                    {isActive && (
+                      <>
+                        <button
+                          onClick={() => setEditingSavingsTransfer(s)}
+                          className="text-slate-400 hover:text-emerald-600"
+                          title="Edit"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteSavingsTransfer(s.id)}
+                          className="text-slate-400 hover:text-red-500"
+                          title="Delete"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
+
+  // Find the allocation for the savings transfer modal (for category name)
+  const savingsTransferAllocation = savingsTransferAllocationId
+    ? payPeriod.allocations.find(a => a.id === savingsTransferAllocationId)
+    : null;
+  const editingSavingsTransferAllocation = editingSavingsTransfer
+    ? payPeriod.allocations.find(a => a.id === editingSavingsTransfer.allocationId)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -385,9 +526,9 @@ export function PayPeriodDetailPage() {
       {/* Summary */}
       <div className="bg-white border-[0.5px] border-slate-200 rounded-[10px] p-5">
         <h2 className="text-[11px] font-bold text-slate-500 tracking-wider mb-4">SUMMARY</h2>
-        <div className="grid grid-cols-2 gap-6">
+        <div className={`grid gap-6 ${savingsSummary.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {/* By Category */}
-          <div>
+          <div className="bg-slate-50 rounded-[8px] border-[0.5px] border-slate-200 p-4">
             <div className="text-xs font-medium text-slate-500 mb-2">By Category</div>
             {Object.keys(categoryTotals).length === 0 ? (
               <div className="text-sm text-slate-400">No transactions yet</div>
@@ -405,7 +546,7 @@ export function PayPeriodDetailPage() {
                       <td className="py-1.5 text-right font-mono font-[500] text-slate-800">{fmt(total)}</td>
                     </tr>
                   ))}
-                  <tr className="bg-slate-50">
+                  <tr className="bg-slate-200 border-t border-slate-300 [&>td:first-child]:rounded-l-[6px] [&>td:last-child]:rounded-r-[6px]">
                     <td className="py-2 px-1 font-semibold text-slate-800">Grand Total</td>
                     <td className="py-2 px-1 text-right font-mono font-semibold text-slate-800">{fmt(grandTotal)}</td>
                   </tr>
@@ -415,7 +556,7 @@ export function PayPeriodDetailPage() {
           </div>
 
           {/* By Priority */}
-          <div>
+          <div className="bg-slate-50 rounded-[8px] border-[0.5px] border-slate-200 p-4">
             <div className="text-xs font-medium text-slate-500 mb-2">By Priority</div>
             {Object.keys(priorityTotals).length === 0 ? (
               <div className="text-sm text-slate-400">No transactions yet</div>
@@ -432,7 +573,7 @@ export function PayPeriodDetailPage() {
                         <td className="py-1.5 text-right font-mono font-[500] text-slate-800">{fmt(priorityTotals[p]!)}</td>
                       </tr>
                     ))}
-                  <tr className="bg-slate-50">
+                  <tr className="bg-slate-200 border-t border-slate-300 [&>td:first-child]:rounded-l-[6px] [&>td:last-child]:rounded-r-[6px]">
                     <td className="py-2 px-1 font-semibold text-slate-800">Grand Total</td>
                     <td className="py-2 px-1 text-right font-mono font-semibold text-slate-800">{fmt(grandTotal)}</td>
                   </tr>
@@ -440,6 +581,44 @@ export function PayPeriodDetailPage() {
               </table>
             )}
           </div>
+          {/* By Savings */}
+          {savingsSummary.length > 0 && (
+            <div className="bg-slate-50 rounded-[8px] border-[0.5px] border-slate-200 p-4">
+              <div className="text-xs font-medium text-slate-500 mb-2">By Savings</div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[0.5px] border-slate-100 text-slate-400 text-[11px]">
+                    <th className="text-left pb-1 font-medium">Category</th>
+                    <th className="text-right pb-1 font-medium">Saved</th>
+                    <th className="text-right pb-1 font-medium">Spent</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {savingsSummary.map(row => (
+                    <tr key={row.categoryId} className="border-b border-[0.5px] border-slate-50">
+                      <td className="py-1.5">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-[7px] h-[7px] rounded-full shrink-0 ${categoryBgColor(row.categoryId)}`} />
+                          <span className="text-slate-700">{getCat(row.categoryId)?.name ?? '—'}</span>
+                        </div>
+                      </td>
+                      <td className="py-1.5 text-right font-mono font-[500] text-emerald-600">{fmt(row.saved)}</td>
+                      <td className="py-1.5 text-right font-mono font-[500] text-slate-800">{fmt(row.spent)}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-slate-200 border-t border-slate-300 [&>td:first-child]:rounded-l-[6px] [&>td:last-child]:rounded-r-[6px]">
+                    <td className="py-2 px-1 font-semibold text-slate-800">Total</td>
+                    <td className="py-2 px-1 text-right font-mono font-semibold text-emerald-600">
+                      {fmt(savingsSummary.reduce((s, r) => s + r.saved, 0))}
+                    </td>
+                    <td className="py-2 px-1 text-right font-mono font-semibold text-slate-800">
+                      {fmt(savingsSummary.reduce((s, r) => s + r.spent, 0))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -635,6 +814,27 @@ export function PayPeriodDetailPage() {
           } : undefined}
           onSubmit={editingTransaction ? handleEditTransaction : handleAddTransaction}
           onClose={() => { setShowAddTransaction(false); setEditingTransaction(null); }}
+        />
+      )}
+
+      {/* Add Savings Transfer Modal */}
+      {savingsTransferAllocationId && savingsTransferAllocation && (
+        <SavingsTransferModal
+          payPeriod={{ payDate: payPeriod.payDate, endDate: payPeriod.endDate }}
+          categoryName={getCat(savingsTransferAllocation.categoryId)?.name ?? ''}
+          onSubmit={handleAddSavingsTransfer}
+          onClose={() => setSavingsTransferAllocationId(null)}
+        />
+      )}
+
+      {/* Edit Savings Transfer Modal */}
+      {editingSavingsTransfer && editingSavingsTransferAllocation && (
+        <SavingsTransferModal
+          payPeriod={{ payDate: payPeriod.payDate, endDate: payPeriod.endDate }}
+          categoryName={getCat(editingSavingsTransferAllocation.categoryId)?.name ?? ''}
+          initialData={editingSavingsTransfer}
+          onSubmit={handleEditSavingsTransfer}
+          onClose={() => setEditingSavingsTransfer(null)}
         />
       )}
     </div>

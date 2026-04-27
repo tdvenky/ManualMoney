@@ -40,12 +40,22 @@ export interface Transaction {
   updatedAt: string;
 }
 
+export interface SavingsTransfer {
+  id: string;
+  amount: number;
+  date: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Allocation {
   id: string;
   categoryId: string;
   allocatedAmount: number;
   currentBalance: number;
   transactions: Transaction[];
+  savingsTransfers: SavingsTransfer[];
   createdAt: string;
   updatedAt: string;
 }
@@ -121,5 +131,11 @@ export interface UpdateTransactionRequest {
   date: string;
   subCategoryId: string;
   priority: Priority;
+  notes?: string;
+}
+
+export interface SavingsTransferRequest {
+  amount: number;
+  date: string;
   notes?: string;
 }

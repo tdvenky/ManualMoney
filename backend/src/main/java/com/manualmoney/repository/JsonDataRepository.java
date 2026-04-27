@@ -184,6 +184,23 @@ public class JsonDataRepository {
                 .findFirst();
     }
 
+    // SavingsTransfer operations
+    public Optional<SavingsTransfer> findSavingsTransferById(UUID id) {
+        return appData.getPayPeriods().stream()
+                .flatMap(p -> p.getAllocations().stream())
+                .flatMap(a -> a.getSavingsTransfers().stream())
+                .filter(s -> s.getId().equals(id))
+                .findFirst();
+    }
+
+    public Optional<Allocation> findAllocationBySavingsTransferId(UUID savingsTransferId) {
+        return appData.getPayPeriods().stream()
+                .flatMap(p -> p.getAllocations().stream())
+                .filter(a -> a.getSavingsTransfers().stream()
+                        .anyMatch(s -> s.getId().equals(savingsTransferId)))
+                .findFirst();
+    }
+
     // Export/Import
     public AppData exportData() {
         return appData;

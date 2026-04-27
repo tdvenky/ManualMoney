@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import type { AppData } from '../types';
 import * as api from '../api/client';
 

@@ -17,12 +17,14 @@ public class Allocation {
     private BigDecimal allocatedAmount;
     private BigDecimal currentBalance;
     private List<Transaction> transactions;
+    private List<SavingsTransfer> savingsTransfers;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Allocation() {
         this.id = UUID.randomUUID();
         this.transactions = new ArrayList<>();
+        this.savingsTransfers = new ArrayList<>();
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
@@ -48,6 +50,9 @@ public class Allocation {
 
     public List<Transaction> getTransactions() { return transactions; }
     public void setTransactions(List<Transaction> transactions) { this.transactions = transactions; }
+
+    public List<SavingsTransfer> getSavingsTransfers() { return savingsTransfers; }
+    public void setSavingsTransfers(List<SavingsTransfer> savingsTransfers) { this.savingsTransfers = savingsTransfers; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

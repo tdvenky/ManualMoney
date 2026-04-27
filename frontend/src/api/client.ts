@@ -5,6 +5,7 @@ import type {
   PayPeriod,
   Allocation,
   Transaction,
+  SavingsTransfer,
   AppData,
   CreateCategoryRequest,
   UpdateCategoryRequest,
@@ -16,6 +17,7 @@ import type {
   UpdateAllocationRequest,
   CreateTransactionRequest,
   UpdateTransactionRequest,
+  SavingsTransferRequest,
 } from '../types';
 
 const api = axios.create({
@@ -133,6 +135,21 @@ export const updateTransaction = async (id: string, data: UpdateTransactionReque
 
 export const deleteTransaction = async (id: string): Promise<void> => {
   await api.delete(`/transactions/${id}`);
+};
+
+// Savings Transfer API
+export const addSavingsTransfer = async (allocationId: string, data: SavingsTransferRequest): Promise<SavingsTransfer> => {
+  const response = await api.post<SavingsTransfer>(`/allocations/${allocationId}/savingstransfers`, data);
+  return response.data;
+};
+
+export const updateSavingsTransfer = async (id: string, data: SavingsTransferRequest): Promise<SavingsTransfer> => {
+  const response = await api.put<SavingsTransfer>(`/savingstransfers/${id}`, data);
+  return response.data;
+};
+
+export const deleteSavingsTransfer = async (id: string): Promise<void> => {
+  await api.delete(`/savingstransfers/${id}`);
 };
 
 // Export/Import API
