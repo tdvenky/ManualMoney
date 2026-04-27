@@ -40,11 +40,14 @@ export interface Transaction {
   updatedAt: string;
 }
 
+export type SavingsTransferType = 'TRANSFER' | 'OVERSPEND_OFFSET' | 'HYSA_WITHDRAWAL';
+
 export interface SavingsTransfer {
   id: string;
   amount: number;
   date: string;
   notes?: string;
+  type: SavingsTransferType;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,8 +70,20 @@ export interface PayPeriod {
   amount: number;
   allocations: Allocation[];
   status: PayPeriodStatus;
+  carryForwardAmount?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OverspendResolutionItem {
+  allocationId: string;
+  amount: number;
+}
+
+export interface ClosePayPeriodRequest {
+  savingsOffsets?: OverspendResolutionItem[];
+  hysaWithdrawals?: OverspendResolutionItem[];
+  carryForwardAmount?: number;
 }
 
 export interface AppData {

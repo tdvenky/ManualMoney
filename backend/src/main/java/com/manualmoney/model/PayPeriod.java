@@ -14,6 +14,7 @@ public class PayPeriod {
     private BigDecimal amount;
     private List<Allocation> allocations;
     private PayPeriodStatus status;
+    private BigDecimal carryForwardAmount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -78,6 +79,14 @@ public class PayPeriod {
 
     public void setStatus(PayPeriodStatus status) {
         this.status = status;
+    }
+
+    public BigDecimal getCarryForwardAmount() {
+        return carryForwardAmount;
+    }
+
+    public void setCarryForwardAmount(BigDecimal carryForwardAmount) {
+        this.carryForwardAmount = carryForwardAmount;
     }
 
     public LocalDateTime getCreatedAt() {

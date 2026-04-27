@@ -18,6 +18,7 @@ import type {
   CreateTransactionRequest,
   UpdateTransactionRequest,
   SavingsTransferRequest,
+  ClosePayPeriodRequest,
 } from '../types';
 
 const api = axios.create({
@@ -97,8 +98,13 @@ export const deletePayPeriod = async (id: string): Promise<void> => {
   await api.delete(`/payperiods/${id}`);
 };
 
-export const closePayPeriod = async (id: string): Promise<PayPeriod> => {
-  const response = await api.put<PayPeriod>(`/payperiods/${id}/close`);
+export const resolveOverspend = async (id: string, resolution: ClosePayPeriodRequest): Promise<PayPeriod> => {
+  const response = await api.post<PayPeriod>(`/payperiods/${id}/resolve-overspend`, resolution);
+  return response.data;
+};
+
+export const closePayPeriod = async (id: string, resolution?: ClosePayPeriodRequest): Promise<PayPeriod> => {
+  const response = await api.put<PayPeriod>(`/payperiods/${id}/close`, resolution ?? null);
   return response.data;
 };
 

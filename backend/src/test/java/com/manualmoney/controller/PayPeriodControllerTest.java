@@ -145,7 +145,7 @@ class PayPeriodControllerTest {
         PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2000"));
         payPeriod.setStatus(PayPeriodStatus.CLOSED);
         UUID id = payPeriod.getId();
-        when(payPeriodService.closePayPeriod(id)).thenReturn(Optional.of(payPeriod));
+        when(payPeriodService.closePayPeriod(eq(id), any(), any(), any())).thenReturn(Optional.of(payPeriod));
 
         mockMvc.perform(put("/api/payperiods/" + id + "/close"))
                 .andExpect(status().isOk())
@@ -155,7 +155,7 @@ class PayPeriodControllerTest {
     @Test
     void closePayPeriod_shouldReturn404_whenNotExists() throws Exception {
         UUID id = UUID.randomUUID();
-        when(payPeriodService.closePayPeriod(id)).thenReturn(Optional.empty());
+        when(payPeriodService.closePayPeriod(eq(id), any(), any(), any())).thenReturn(Optional.empty());
 
         mockMvc.perform(put("/api/payperiods/" + id + "/close"))
                 .andExpect(status().isNotFound());

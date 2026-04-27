@@ -33,6 +33,12 @@ public class PayPeriodController {
                 .body(Collections.singletonMap("error", ex.getMessage()));
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(Collections.singletonMap("error", ex.getMessage()));
+    }
+
     @GetMapping("/payperiods")
     public List<PayPeriod> getAllPayPeriods() {
         return payPeriodService.getAllPayPeriods();
@@ -65,9 +71,21 @@ public class PayPeriodController {
         return ResponseEntity.notFound().build();
     }
 
+    @PostMapping("/payperiods/{id}/resolve-overspend")
+    public ResponseEntity<PayPeriod> resolveOverspend(@PathVariable UUID id,
+                                                       @RequestBody ClosePayPeriodRequest request) {
+        return payPeriodService.resolveOverspend(id, request.getSavingsOffsets(), request.getHysaWithdrawals(), request.getCarryForwardAmount())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
     @PutMapping("/payperiods/{id}/close")
-    public ResponseEntity<PayPeriod> closePayPeriod(@PathVariable UUID id) {
-        return payPeriodService.closePayPeriod(id)
+    public ResponseEntity<PayPeriod> closePayPeriod(@PathVariable UUID id,
+                                                     @RequestBody(required = false) ClosePayPeriodRequest request) {
+        List<PayPeriodService.ResolutionItem> offsets = request != null ? request.getSavingsOffsets() : null;
+        List<PayPeriodService.ResolutionItem> withdrawals = request != null ? request.getHysaWithdrawals() : null;
+        BigDecimal carryForward = request != null ? request.getCarryForwardAmount() : null;
+        return payPeriodService.closePayPeriod(id, offsets, withdrawals, carryForward)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -251,5 +269,18 @@ public class PayPeriodController {
         public void setDate(LocalDate date) { this.date = date; }
         public String getNotes() { return notes; }
         public void setNotes(String notes) { this.notes = notes; }
+    }
+
+    public static class ClosePayPeriodRequest {
+        private List<PayPeriodService.ResolutionItem> savingsOffsets;
+        private List<PayPeriodService.ResolutionItem> hysaWithdrawals;
+        private BigDecimal carryForwardAmount;
+
+        public List<PayPeriodService.ResolutionItem> getSavingsOffsets() { return savingsOffsets; }
+        public void setSavingsOffsets(List<PayPeriodService.ResolutionItem> savingsOffsets) { this.savingsOffsets = savingsOffsets; }
+        public List<PayPeriodService.ResolutionItem> getHysaWithdrawals() { return hysaWithdrawals; }
+        public void setHysaWithdrawals(List<PayPeriodService.ResolutionItem> hysaWithdrawals) { this.hysaWithdrawals = hysaWithdrawals; }
+        public BigDecimal getCarryForwardAmount() { return carryForwardAmount; }
+        public void setCarryForwardAmount(BigDecimal carryForwardAmount) { this.carryForwardAmount = carryForwardAmount; }
     }
 }

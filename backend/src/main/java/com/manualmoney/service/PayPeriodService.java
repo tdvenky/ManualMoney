@@ -43,11 +43,122 @@ public class PayPeriodService {
         });
     }
 
-    public Optional<PayPeriod> closePayPeriod(UUID id) {
+    public Optional<PayPeriod> resolveOverspend(UUID id,
+                                                  List<ResolutionItem> savingsOffsets,
+                                                  List<ResolutionItem> hysaWithdrawals,
+                                                  BigDecimal carryForwardAmount) {
         return repository.findPayPeriodById(id).map(payPeriod -> {
+            BigDecimal overspend = calculateOverspend(payPeriod);
+            if (overspend.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal existingCoverage = calculateExistingCoverage(payPeriod);
+                BigDecimal remaining = overspend.subtract(existingCoverage);
+                applyAndValidateResolution(payPeriod, savingsOffsets, hysaWithdrawals, carryForwardAmount, remaining);
+            }
+            return repository.savePayPeriod(payPeriod);
+        });
+    }
+
+    public Optional<PayPeriod> closePayPeriod(UUID id,
+                                               List<ResolutionItem> savingsOffsets,
+                                               List<ResolutionItem> hysaWithdrawals,
+                                               BigDecimal carryForwardAmount) {
+        return repository.findPayPeriodById(id).map(payPeriod -> {
+            BigDecimal overspend = calculateOverspend(payPeriod);
+            if (overspend.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal existingCoverage = calculateExistingCoverage(payPeriod);
+                BigDecimal remaining = overspend.subtract(existingCoverage);
+                if (remaining.compareTo(BigDecimal.ZERO) > 0) {
+                    applyAndValidateResolution(payPeriod, savingsOffsets, hysaWithdrawals, carryForwardAmount, remaining);
+                }
+            }
             payPeriod.setStatus(PayPeriodStatus.CLOSED);
             return repository.savePayPeriod(payPeriod);
         });
+    }
+
+    private BigDecimal calculateOverspend(PayPeriod payPeriod) {
+        // Measure overspend purely from transactions exceeding each allocation's budgeted amount.
+        // This ignores savings transfers (OVERSPEND_OFFSET, HYSA_WITHDRAWAL) so that applying a
+        // resolution doesn't inflate the overspend figure by making savings balances go negative.
+        return payPeriod.getAllocations().stream()
+                .map(a -> {
+                    BigDecimal spent = a.getTransactions().stream()
+                            .map(Transaction::getAmount)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    BigDecimal over = spent.subtract(a.getAllocatedAmount());
+                    return over.compareTo(BigDecimal.ZERO) > 0 ? over : BigDecimal.ZERO;
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal calculateExistingCoverage(PayPeriod payPeriod) {
+        BigDecimal offsets = payPeriod.getAllocations().stream()
+                .flatMap(a -> a.getSavingsTransfers().stream())
+                .filter(t -> "OVERSPEND_OFFSET".equals(t.getType()))
+                .map(SavingsTransfer::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal withdrawals = payPeriod.getAllocations().stream()
+                .flatMap(a -> a.getSavingsTransfers().stream())
+                .filter(t -> "HYSA_WITHDRAWAL".equals(t.getType()))
+                .map(t -> t.getAmount().negate())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal cf = payPeriod.getCarryForwardAmount() != null ? payPeriod.getCarryForwardAmount() : BigDecimal.ZERO;
+        return offsets.add(withdrawals).add(cf);
+    }
+
+    private void applyAndValidateResolution(PayPeriod payPeriod,
+                                             List<ResolutionItem> savingsOffsets,
+                                             List<ResolutionItem> hysaWithdrawals,
+                                             BigDecimal carryForwardAmount,
+                                             BigDecimal remainingToResolve) {
+        BigDecimal offsetTotal = savingsOffsets == null ? BigDecimal.ZERO :
+                savingsOffsets.stream().map(ResolutionItem::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal withdrawalTotal = hysaWithdrawals == null ? BigDecimal.ZERO :
+                hysaWithdrawals.stream().map(ResolutionItem::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal cfAmount = carryForwardAmount != null ? carryForwardAmount : BigDecimal.ZERO;
+        BigDecimal covered = offsetTotal.add(withdrawalTotal).add(cfAmount);
+
+        if (covered.compareTo(remainingToResolve) < 0) {
+            throw new IllegalStateException(
+                    "Overspend of " + remainingToResolve + " is not fully resolved. Only " + covered + " is covered.");
+        }
+
+        if (savingsOffsets != null) {
+            for (ResolutionItem item : savingsOffsets) {
+                if (item.getAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                Allocation alloc = payPeriod.getAllocations().stream()
+                        .filter(a -> a.getId().equals(item.getAllocationId()))
+                        .findFirst().orElseThrow(() -> new IllegalArgumentException("Allocation not found: " + item.getAllocationId()));
+                alloc.getSavingsTransfers().add(new SavingsTransfer(item.getAmount(), LocalDate.now(), "Overspend offset", "OVERSPEND_OFFSET"));
+                recalculateBalance(alloc);
+            }
+        }
+
+        if (hysaWithdrawals != null) {
+            for (ResolutionItem item : hysaWithdrawals) {
+                if (item.getAmount().compareTo(BigDecimal.ZERO) <= 0) continue;
+                Allocation alloc = payPeriod.getAllocations().stream()
+                        .filter(a -> a.getId().equals(item.getAllocationId()))
+                        .findFirst().orElseThrow(() -> new IllegalArgumentException("Allocation not found: " + item.getAllocationId()));
+                alloc.getSavingsTransfers().add(new SavingsTransfer(item.getAmount().negate(), LocalDate.now(), "HYSA withdrawal", "HYSA_WITHDRAWAL"));
+                recalculateBalance(alloc);
+            }
+        }
+
+        if (cfAmount.compareTo(BigDecimal.ZERO) > 0) {
+            payPeriod.setCarryForwardAmount(
+                    (payPeriod.getCarryForwardAmount() != null ? payPeriod.getCarryForwardAmount() : BigDecimal.ZERO).add(cfAmount));
+        }
+    }
+
+    public static class ResolutionItem {
+        private UUID allocationId;
+        private BigDecimal amount;
+
+        public UUID getAllocationId() { return allocationId; }
+        public void setAllocationId(UUID allocationId) { this.allocationId = allocationId; }
+        public BigDecimal getAmount() { return amount; }
+        public void setAmount(BigDecimal amount) { this.amount = amount; }
     }
 
     public Optional<PayPeriod> reopenPayPeriod(UUID id) {

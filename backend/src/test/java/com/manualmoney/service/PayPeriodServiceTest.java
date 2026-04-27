@@ -130,7 +130,7 @@ class PayPeriodServiceTest {
         when(repository.findPayPeriodById(id)).thenReturn(Optional.of(payPeriod));
         when(repository.savePayPeriod(any(PayPeriod.class))).thenAnswer(i -> i.getArgument(0));
 
-        Optional<PayPeriod> result = payPeriodService.closePayPeriod(id);
+        Optional<PayPeriod> result = payPeriodService.closePayPeriod(id, null, null, null);
 
         assertTrue(result.isPresent());
         assertEquals(PayPeriodStatus.CLOSED, result.get().getStatus());
@@ -141,7 +141,7 @@ class PayPeriodServiceTest {
         UUID id = UUID.randomUUID();
         when(repository.findPayPeriodById(id)).thenReturn(Optional.empty());
 
-        Optional<PayPeriod> result = payPeriodService.closePayPeriod(id);
+        Optional<PayPeriod> result = payPeriodService.closePayPeriod(id, null, null, null);
 
         assertFalse(result.isPresent());
         verify(repository, never()).savePayPeriod(any());

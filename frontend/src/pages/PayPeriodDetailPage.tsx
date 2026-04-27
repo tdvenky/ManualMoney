@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import type { PayPeriod, Category, SubCategory, Transaction, SavingsTransfer, Priority } from '../types';
+import type { PayPeriod, Category, SubCategory, Transaction, SavingsTransfer, Priority, ClosePayPeriodRequest } from '../types';
 import { PRIORITY_LABELS } from '../types';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { SavingsTransferModal } from '../components/SavingsTransferModal';
+import { OverspendResolutionModal } from '../components/OverspendResolutionModal';
 import * as api from '../api/client';
 
 const CATEGORY_COLORS = [
@@ -44,6 +45,8 @@ export function PayPeriodDetailPage() {
   // Savings transfer modal state
   const [savingsTransferAllocationId, setSavingsTransferAllocationId] = useState<string | null>(null);
   const [editingSavingsTransfer, setEditingSavingsTransfer] = useState<(SavingsTransfer & { allocationId: string }) | null>(null);
+  // Overspend resolution modal — mode: 'resolve' (save only) | 'close' (save + close)
+  const [overspendModalMode, setOverspendModalMode] = useState<'resolve' | 'close' | null>(null);
 
   useEffect(() => {
     if (id) loadData();
@@ -79,8 +82,27 @@ export function PayPeriodDetailPage() {
   const getSubCat = (subCategoryId: string) => subCategories.find(s => s.id === subCategoryId);
 
   const totalAllocated = payPeriod?.allocations.reduce((s, a) => s + a.allocatedAmount, 0) ?? 0;
-  const totalRemaining = payPeriod?.allocations.reduce((s, a) => s + a.currentBalance, 0) ?? 0;
+  const totalRemaining = payPeriod?.allocations
+    .filter(a => a.currentBalance > 0)
+    .reduce((s, a) => s + a.currentBalance, 0) ?? 0;
   const unallocated = (payPeriod?.amount ?? 0) - totalAllocated;
+
+  // Transaction-based overspend (matches backend calculateOverspend), net of existing coverage
+  const rawOverspend = payPeriod?.allocations.reduce((s, a) => {
+    const spent = a.transactions.reduce((ts, t) => ts + t.amount, 0);
+    const over = spent - a.allocatedAmount;
+    return s + (over > 0 ? over : 0);
+  }, 0) ?? 0;
+  const existingCoverage = (payPeriod?.allocations.reduce((s, a) => {
+    const offsets = (a.savingsTransfers ?? [])
+      .filter(t => t.type === 'OVERSPEND_OFFSET')
+      .reduce((ss, t) => ss + t.amount, 0);
+    const withdrawals = (a.savingsTransfers ?? [])
+      .filter(t => t.type === 'HYSA_WITHDRAWAL')
+      .reduce((ss, t) => ss + Math.abs(t.amount), 0);
+    return s + offsets + withdrawals;
+  }, 0) ?? 0) + (payPeriod?.carryForwardAmount ?? 0);
+  const overspend = Math.max(0, rawOverspend - existingCoverage);
 
   const allTransactions: (Transaction & { allocationId: string; categoryId: string })[] = useMemo(() => {
     if (!payPeriod) return [];
@@ -137,7 +159,7 @@ export function PayPeriodDetailPage() {
       })
       .map(a => ({
         categoryId: a.categoryId,
-        saved: (a.savingsTransfers ?? []).reduce((s, t) => s + t.amount, 0),
+        saved: (a.savingsTransfers ?? []).filter(t => t.type === 'TRANSFER' || t.type == null).reduce((s, t) => s + t.amount, 0),
         spent: a.transactions.reduce((s, t) => s + t.amount, 0),
       }))
       .filter(row => row.saved > 0 || row.spent > 0);
@@ -184,14 +206,37 @@ export function PayPeriodDetailPage() {
     }
   };
 
-  const handleClosePayPeriod = async () => {
-    if (!confirm('Close this pay period?')) return;
-    try {
-      await api.closePayPeriod(id!);
-      await loadData();
-    } catch {
-      setError('Failed to close pay period');
+  const handleClosePayPeriod = () => {
+    if (!payPeriod) return;
+
+    const savingsWithBalance = payPeriod.allocations
+      .filter(a => getCat(a.categoryId)?.type === 'SAVINGS' && a.currentBalance > 0.005);
+    if (savingsWithBalance.length > 0) {
+      const names = savingsWithBalance.map(a => getCat(a.categoryId)?.name ?? '—').join(', ');
+      setError(
+        `Record your savings transfers before closing. ${names} still ${savingsWithBalance.length === 1 ? 'has' : 'have'} a remaining balance.`
+      );
+      return;
     }
+
+    if (overspend > 0.005) {
+      setOverspendModalMode('close');
+    } else {
+      if (!confirm('Close this pay period?')) return;
+      api.closePayPeriod(id!).then(() => loadData()).catch(() => setError('Failed to close pay period'));
+    }
+  };
+
+  const handleResolveAndClose = async (resolution: ClosePayPeriodRequest) => {
+    await api.closePayPeriod(id!, resolution);
+    setOverspendModalMode(null);
+    await loadData();
+  };
+
+  const handleResolveOnly = async (resolution: ClosePayPeriodRequest) => {
+    await api.resolveOverspend(id!, resolution);
+    setOverspendModalMode(null);
+    await loadData();
   };
 
   const handleReopenPayPeriod = async () => {
@@ -278,10 +323,11 @@ export function PayPeriodDetailPage() {
   const allocatedCategoryIds = new Set(payPeriod.allocations.map(a => a.categoryId));
   const availableCategories = categories.filter(c => !allocatedCategoryIds.has(c.id));
 
-  // All savings transfers across all savings allocations, sorted by date desc
+  // All savings transfers across all savings allocations, sorted by date desc (includes resolution entries)
   const allSavingsTransfers = payPeriod.allocations
     .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
-    .flatMap(a => (a.savingsTransfers ?? []).map(s => ({ ...s, allocationId: a.id, categoryId: a.categoryId })))
+    .flatMap(a => (a.savingsTransfers ?? [])
+      .map(s => ({ ...s, allocationId: a.id, categoryId: a.categoryId })))
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const renderAllocationTable = (type: 'EXPENSE' | 'SAVINGS') => {
@@ -289,9 +335,19 @@ export function PayPeriodDetailPage() {
     if (allocs.length === 0) return null;
 
     const totalAllocatedForType = allocs.reduce((s, a) => s + a.allocatedAmount, 0);
-    const totalSpentForType = allocs.reduce((s, a) => s + a.transactions.reduce((ts, t) => ts + t.amount, 0), 0);
+    const totalSpentForType = allocs.reduce((s, a) => {
+      const txSpent = a.transactions.reduce((ts, t) => ts + t.amount, 0);
+      const offsetSpent = type === 'SAVINGS'
+        ? (a.savingsTransfers ?? []).filter(t => t.type === 'OVERSPEND_OFFSET').reduce((ss, t) => ss + t.amount, 0)
+        : 0;
+      return s + txSpent + offsetSpent;
+    }, 0);
     const totalSaved = type === 'SAVINGS'
-      ? allocs.reduce((s, a) => s + (a.savingsTransfers ?? []).reduce((ss, t) => ss + t.amount, 0), 0)
+      ? allocs.reduce((s, a) => {
+          const transferred = (a.savingsTransfers ?? []).filter(t => t.type === 'TRANSFER' || t.type == null).reduce((ss, t) => ss + t.amount, 0);
+          const withdrawn = (a.savingsTransfers ?? []).filter(t => t.type === 'HYSA_WITHDRAWAL').reduce((ss, t) => ss + Math.abs(t.amount), 0);
+          return s + transferred - withdrawn;
+        }, 0)
       : 0;
     const totalPositiveRemaining = allocs.filter(a => a.currentBalance >= 0).reduce((s, a) => s + a.currentBalance, 0);
     const totalOverspent = allocs.filter(a => a.currentBalance < 0).reduce((s, a) => s + Math.abs(a.currentBalance), 0);
@@ -313,9 +369,13 @@ export function PayPeriodDetailPage() {
           <tbody>
             {allocs.map(a => {
               const savedAmount = type === 'SAVINGS'
-                ? (a.savingsTransfers ?? []).reduce((s, t) => s + t.amount, 0)
+                ? (a.savingsTransfers ?? []).filter(t => t.type === 'TRANSFER' || t.type == null).reduce((s, t) => s + t.amount, 0)
+                  - (a.savingsTransfers ?? []).filter(t => t.type === 'HYSA_WITHDRAWAL').reduce((s, t) => s + Math.abs(t.amount), 0)
                 : 0;
-              const spent = a.transactions.reduce((s, t) => s + t.amount, 0);
+              const offsetSpent = type === 'SAVINGS'
+                ? (a.savingsTransfers ?? []).filter(t => t.type === 'OVERSPEND_OFFSET').reduce((s, t) => s + t.amount, 0)
+                : 0;
+              const spent = a.transactions.reduce((s, t) => s + t.amount, 0) + offsetSpent;
               const isEditing = editingAllocationId === a.id;
               return (
                 <tr key={a.id} className="border-b border-[0.5px] border-slate-100 group">
@@ -336,8 +396,17 @@ export function PayPeriodDetailPage() {
                     <td className="py-2.5 text-right font-mono text-emerald-600">{fmt(savedAmount)}</td>
                   )}
                   <td className="py-2.5 text-right font-mono text-slate-800">{fmt(spent)}</td>
-                  <td className={`py-2.5 text-right font-mono ${a.currentBalance < 0 ? 'text-red-600' : 'text-slate-800'}`}>
-                    {fmt(a.currentBalance)}
+                  <td className="py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded leading-none ${
+                        type === 'EXPENSE' && a.currentBalance < 0 && overspend <= 0.005
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'invisible'
+                      }`}>covered</span>
+                      <span className={`font-mono ${a.currentBalance < 0 ? (type === 'EXPENSE' && overspend <= 0.005 ? 'text-amber-600' : 'text-red-600') : 'text-slate-800'}`}>
+                        {fmt(a.currentBalance)}
+                      </span>
+                    </div>
                   </td>
                   {isActive && (
                     <td className="py-2.5 pl-2 pr-2 text-right">
@@ -407,44 +476,72 @@ export function PayPeriodDetailPage() {
           <div className="mt-3">
             <div className="text-[11px] font-medium text-slate-400 mb-1.5">TRANSFER HISTORY</div>
             <div className="rounded-[8px] border-[0.5px] border-emerald-100 overflow-hidden">
-              {allSavingsTransfers.map(s => (
-                <div key={s.id} className="flex items-center gap-3 px-3 py-2 border-b border-[0.5px] border-emerald-50 last:border-0 hover:bg-emerald-50 group">
-                  <div className="w-[30px] h-[30px] rounded-[6px] flex items-center justify-center shrink-0 bg-emerald-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                    </svg>
+              {allSavingsTransfers.map(s => {
+                const isOffset = s.type === 'OVERSPEND_OFFSET';
+                const isWithdrawal = s.type === 'HYSA_WITHDRAWAL';
+                const isRegular = !isOffset && !isWithdrawal;
+                const displayAmount = isWithdrawal ? Math.abs(s.amount) : s.amount;
+                const catName = getCat(s.categoryId)?.name ?? '—';
+                const label = isOffset
+                  ? `Overspend Offset — ${catName}`
+                  : isWithdrawal
+                  ? `HYSA Withdrawal — ${catName}`
+                  : catName;
+                return (
+                  <div key={s.id} className={`flex items-center gap-3 px-3 py-2 border-b border-[0.5px] last:border-0 group ${
+                    isOffset ? 'border-amber-50 hover:bg-amber-50' : isWithdrawal ? 'border-red-50 hover:bg-red-50' : 'border-emerald-50 hover:bg-emerald-50'
+                  }`}>
+                    <div className={`w-[30px] h-[30px] rounded-[6px] flex items-center justify-center shrink-0 ${
+                      isOffset ? 'bg-amber-100' : isWithdrawal ? 'bg-red-100' : 'bg-emerald-100'
+                    }`}>
+                      {isWithdrawal ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                      ) : isOffset ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-slate-700">{label}</div>
+                      <div className="text-[11px] text-slate-400">{fmtDateShort(s.date)}{s.notes ? ` · ${s.notes}` : ''}</div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`font-mono text-sm ${isOffset ? 'text-amber-600' : isWithdrawal ? 'text-red-600' : 'text-emerald-600'}`}>
+                        {isWithdrawal ? '−' : ''}{fmt(displayAmount)}
+                      </span>
+                      {isActive && isRegular && (
+                        <>
+                          <button
+                            onClick={() => setEditingSavingsTransfer(s)}
+                            className="text-slate-400 hover:text-emerald-600"
+                            title="Edit"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSavingsTransfer(s.id)}
+                            className="text-slate-400 hover:text-red-500"
+                            title="Delete"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm text-slate-700">{getCat(s.categoryId)?.name ?? '—'}</div>
-                    <div className="text-[11px] text-slate-400">{fmtDateShort(s.date)}{s.notes ? ` · ${s.notes}` : ''}</div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-mono text-sm text-emerald-600">{fmt(s.amount)}</span>
-                    {isActive && (
-                      <>
-                        <button
-                          onClick={() => setEditingSavingsTransfer(s)}
-                          className="text-slate-400 hover:text-emerald-600"
-                          title="Edit"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => handleDeleteSavingsTransfer(s.id)}
-                          className="text-slate-400 hover:text-red-500"
-                          title="Delete"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -478,6 +575,14 @@ export function PayPeriodDetailPage() {
         </div>
         {isActive ? (
           <div className="flex gap-2">
+            {overspend > 0.005 ? (
+              <button
+                onClick={() => setOverspendModalMode('resolve')}
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-[7px] hover:bg-red-700"
+              >
+                Resolve Overspend
+              </button>
+            ) : null}
             <button
               onClick={() => setShowAddTransaction(true)}
               className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-[7px] hover:bg-emerald-700"
@@ -507,6 +612,22 @@ export function PayPeriodDetailPage() {
           <button onClick={() => setError(null)} className="ml-3 underline">Dismiss</button>
         </div>
       )}
+
+      {/* Carry forward banner */}
+      {isActive && (() => {
+        const cf = payPeriod.carryForwardAmount ?? 0;
+        return cf > 0.005 ? (
+          <div className="bg-amber-50 border-[0.5px] border-amber-300 text-amber-800 px-4 py-3 rounded-[10px] text-sm flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <span className="font-semibold">Carry forward: </span>
+              <span className="font-mono">{fmt(cf)}</span> from the previous pay period is unresolved. Reduce your savings allocation by this amount to account for it.
+            </div>
+          </div>
+        ) : null;
+      })()}
 
       {/* Stat cards */}
       <div className="grid grid-cols-4 gap-[10px]">
@@ -835,6 +956,23 @@ export function PayPeriodDetailPage() {
           initialData={editingSavingsTransfer}
           onSubmit={handleEditSavingsTransfer}
           onClose={() => setEditingSavingsTransfer(null)}
+        />
+      )}
+
+      {/* Overspend Resolution Modal */}
+      {overspendModalMode !== null && (
+        <OverspendResolutionModal
+          overspend={overspend}
+          savingsAllocations={payPeriod.allocations
+            .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
+            .map(a => ({
+              id: a.id,
+              categoryName: getCat(a.categoryId)?.name ?? '—',
+              remainingBalance: Math.max(0, a.currentBalance),
+            }))}
+          submitLabel={overspendModalMode === 'close' ? 'Resolve & Close' : 'Save Resolution'}
+          onSubmit={overspendModalMode === 'close' ? handleResolveAndClose : handleResolveOnly}
+          onCancel={() => setOverspendModalMode(null)}
         />
       )}
     </div>
