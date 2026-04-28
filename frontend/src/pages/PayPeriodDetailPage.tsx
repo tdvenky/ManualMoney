@@ -5,6 +5,7 @@ import { PRIORITY_LABELS } from '../types';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { SavingsTransferModal } from '../components/SavingsTransferModal';
 import { OverspendResolutionModal } from '../components/OverspendResolutionModal';
+import { MoveSurplusToSavingsModal } from '../components/MoveSurplusToSavingsModal';
 import * as api from '../api/client';
 
 const CATEGORY_COLORS = [
@@ -47,6 +48,8 @@ export function PayPeriodDetailPage() {
   const [editingSavingsTransfer, setEditingSavingsTransfer] = useState<(SavingsTransfer & { allocationId: string }) | null>(null);
   // Overspend resolution modal — mode: 'resolve' (save only) | 'close' (save + close)
   const [overspendModalMode, setOverspendModalMode] = useState<'resolve' | 'close' | null>(null);
+  // Move surplus to savings modal
+  const [moveSurplusAllocationId, setMoveSurplusAllocationId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) loadData();
@@ -159,8 +162,10 @@ export function PayPeriodDetailPage() {
       })
       .map(a => ({
         categoryId: a.categoryId,
-        saved: (a.savingsTransfers ?? []).filter(t => t.type === 'TRANSFER' || t.type == null).reduce((s, t) => s + t.amount, 0),
-        spent: a.transactions.reduce((s, t) => s + t.amount, 0),
+        saved: (a.savingsTransfers ?? []).filter(t => t.type === 'TRANSFER' || t.type == null).reduce((s, t) => s + t.amount, 0)
+          - (a.savingsTransfers ?? []).filter(t => t.type === 'HYSA_WITHDRAWAL').reduce((s, t) => s + Math.abs(t.amount), 0),
+        spent: a.transactions.reduce((s, t) => s + t.amount, 0)
+          + (a.savingsTransfers ?? []).filter(t => t.type === 'OVERSPEND_OFFSET').reduce((s, t) => s + t.amount, 0),
       }))
       .filter(row => row.saved > 0 || row.spent > 0);
   }, [payPeriod, categories]);
@@ -204,6 +209,17 @@ export function PayPeriodDetailPage() {
     } catch {
       setError('Failed to delete savings transfer');
     }
+  };
+
+  const handleMoveSurplus = async (data: { savingsAllocationId: string; amount: number; date: string; notes?: string }) => {
+    const expenseAlloc = payPeriod!.allocations.find(a => a.id === moveSurplusAllocationId)!;
+    const savingsAlloc = payPeriod!.allocations.find(a => a.id === data.savingsAllocationId)!;
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    await api.updateAllocation(expenseAlloc.id, { allocatedAmount: round2(expenseAlloc.allocatedAmount - data.amount) });
+    await api.updateAllocation(savingsAlloc.id, { allocatedAmount: round2(savingsAlloc.allocatedAmount + data.amount) });
+    await api.addSavingsTransfer(savingsAlloc.id, { amount: data.amount, date: data.date, notes: data.notes });
+    setMoveSurplusAllocationId(null);
+    await loadData();
   };
 
   const handleClosePayPeriod = () => {
@@ -423,6 +439,14 @@ export function PayPeriodDetailPage() {
                               className="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-[0.5px] border-emerald-200 whitespace-nowrap"
                             >
                               Record Savings
+                            </button>
+                          )}
+                          {type === 'EXPENSE' && a.currentBalance > 0.005 && payPeriod.allocations.some(sa => getCat(sa.categoryId)?.type === 'SAVINGS') && (
+                            <button
+                              onClick={() => setMoveSurplusAllocationId(a.id)}
+                              className="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-[0.5px] border-emerald-200 whitespace-nowrap"
+                            >
+                              Save surplus
                             </button>
                           )}
                           <button
@@ -958,6 +982,24 @@ export function PayPeriodDetailPage() {
           onClose={() => setEditingSavingsTransfer(null)}
         />
       )}
+
+      {/* Move Surplus to Savings Modal */}
+      {moveSurplusAllocationId && (() => {
+        const expenseAlloc = payPeriod.allocations.find(a => a.id === moveSurplusAllocationId)!;
+        const savingsOptions = payPeriod.allocations
+          .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
+          .map(a => ({ id: a.id, categoryName: getCat(a.categoryId)?.name ?? '—' }));
+        return (
+          <MoveSurplusToSavingsModal
+            payPeriod={{ payDate: payPeriod.payDate, endDate: payPeriod.endDate }}
+            expenseCategoryName={getCat(expenseAlloc.categoryId)?.name ?? '—'}
+            remainingBalance={expenseAlloc.currentBalance}
+            savingsAllocations={savingsOptions}
+            onSubmit={handleMoveSurplus}
+            onClose={() => setMoveSurplusAllocationId(null)}
+          />
+        );
+      })()}
 
       {/* Overspend Resolution Modal */}
       {overspendModalMode !== null && (
