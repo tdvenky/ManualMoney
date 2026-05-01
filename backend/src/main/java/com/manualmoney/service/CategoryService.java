@@ -1,7 +1,10 @@
 package com.manualmoney.service;
 
+import com.manualmoney.model.Allocation;
 import com.manualmoney.model.Category;
 import com.manualmoney.model.CategoryType;
+import com.manualmoney.model.PayPeriod;
+import com.manualmoney.model.PayPeriodStatus;
 import com.manualmoney.repository.JsonDataRepository;
 import org.springframework.stereotype.Service;
 
@@ -33,8 +36,20 @@ public class CategoryService {
 
     public Optional<Category> updateCategory(UUID id, String name, CategoryType type) {
         return repository.findCategoryById(id).map(category -> {
+            boolean nameChanged = !name.equals(category.getName());
             category.setName(name);
             category.setType(type);
+            if (nameChanged) {
+                for (PayPeriod payPeriod : repository.findAllPayPeriods()) {
+                    if (payPeriod.getStatus() == PayPeriodStatus.ACTIVE) {
+                        for (Allocation allocation : payPeriod.getAllocations()) {
+                            if (id.equals(allocation.getCategoryId())) {
+                                allocation.setCategoryName(name);
+                            }
+                        }
+                    }
+                }
+            }
             return repository.saveCategory(category);
         });
     }

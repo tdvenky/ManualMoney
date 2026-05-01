@@ -41,11 +41,30 @@ public class JsonDataRepository {
         if (file.exists()) {
             try {
                 appData = objectMapper.readValue(file, AppData.class);
+                backfillCategoryNames();
             } catch (IOException e) {
                 appData = new AppData();
             }
         } else {
             appData = new AppData();
+        }
+    }
+
+    private void backfillCategoryNames() {
+        boolean[] changed = {false};
+        for (PayPeriod payPeriod : appData.getPayPeriods()) {
+            for (Allocation allocation : payPeriod.getAllocations()) {
+                if (allocation.getCategoryName() == null) {
+                    Optional<Category> cat = findCategoryById(allocation.getCategoryId());
+                    if (cat.isPresent()) {
+                        allocation.setCategoryName(cat.get().getName());
+                        changed[0] = true;
+                    }
+                }
+            }
+        }
+        if (changed[0]) {
+            saveData();
         }
     }
 

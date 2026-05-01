@@ -13,6 +13,7 @@ public class Allocation {
 
     @JsonAlias("bucketId")
     private UUID categoryId;
+    private String categoryName;
 
     private BigDecimal allocatedAmount;
     private BigDecimal currentBalance;
@@ -41,6 +42,9 @@ public class Allocation {
 
     public UUID getCategoryId() { return categoryId; }
     public void setCategoryId(UUID categoryId) { this.categoryId = categoryId; }
+
+    public String getCategoryName() { return categoryName; }
+    public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
 
     public BigDecimal getAllocatedAmount() { return allocatedAmount; }
     public void setAllocatedAmount(BigDecimal allocatedAmount) { this.allocatedAmount = allocatedAmount; }

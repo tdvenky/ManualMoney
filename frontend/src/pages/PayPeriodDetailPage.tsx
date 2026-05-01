@@ -84,6 +84,14 @@ export function PayPeriodDetailPage() {
   const getCat = (categoryId: string) => categories.find(c => c.id === categoryId);
   const getSubCat = (subCategoryId: string) => subCategories.find(s => s.id === subCategoryId);
 
+  const categoryNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    payPeriod?.allocations.forEach(a => {
+      map.set(a.categoryId, a.categoryName ?? categories.find(c => c.id === a.categoryId)?.name ?? '—');
+    });
+    return map;
+  }, [payPeriod, categories]);
+
   const totalAllocated = payPeriod?.allocations.reduce((s, a) => s + a.allocatedAmount, 0) ?? 0;
   const totalRemaining = payPeriod?.allocations
     .filter(a => a.currentBalance > 0)
@@ -228,7 +236,7 @@ export function PayPeriodDetailPage() {
     const savingsWithBalance = payPeriod.allocations
       .filter(a => getCat(a.categoryId)?.type === 'SAVINGS' && a.currentBalance > 0.005);
     if (savingsWithBalance.length > 0) {
-      const names = savingsWithBalance.map(a => getCat(a.categoryId)?.name ?? '—').join(', ');
+      const names = savingsWithBalance.map(a => categoryNameMap.get(a.categoryId) ?? '—').join(', ');
       setError(
         `Record your savings transfers before closing. ${names} still ${savingsWithBalance.length === 1 ? 'has' : 'have'} a remaining balance.`
       );
@@ -395,7 +403,7 @@ export function PayPeriodDetailPage() {
               const isEditing = editingAllocationId === a.id;
               return (
                 <tr key={a.id} className="border-b border-[0.5px] border-slate-100 group">
-                  <td className="py-2.5 text-slate-800">{getCat(a.categoryId)?.name ?? '—'}</td>
+                  <td className="py-2.5 text-slate-800">{categoryNameMap.get(a.categoryId) ?? '—'}</td>
                   <td className="py-2.5 text-right font-mono text-slate-800">
                     {isEditing ? (
                       <input
@@ -505,7 +513,7 @@ export function PayPeriodDetailPage() {
                 const isWithdrawal = s.type === 'HYSA_WITHDRAWAL';
                 const isRegular = !isOffset && !isWithdrawal;
                 const displayAmount = isWithdrawal ? Math.abs(s.amount) : s.amount;
-                const catName = getCat(s.categoryId)?.name ?? '—';
+                const catName = categoryNameMap.get(s.categoryId) ?? '—';
                 const label = isOffset
                   ? `Overspend Offset — ${catName}`
                   : isWithdrawal
@@ -685,7 +693,7 @@ export function PayPeriodDetailPage() {
                       <td className="py-1.5">
                         <div className="flex items-center gap-2">
                           <div className={`w-[7px] h-[7px] rounded-full shrink-0 ${categoryBgColor(catId)}`} />
-                          <span className="text-slate-700">{getCat(catId)?.name ?? '—'}</span>
+                          <span className="text-slate-700">{categoryNameMap.get(catId) ?? '—'}</span>
                         </div>
                       </td>
                       <td className="py-1.5 text-right font-mono font-[500] text-slate-800">{fmt(total)}</td>
@@ -744,7 +752,7 @@ export function PayPeriodDetailPage() {
                       <td className="py-1.5">
                         <div className="flex items-center gap-2">
                           <div className={`w-[7px] h-[7px] rounded-full shrink-0 ${categoryBgColor(row.categoryId)}`} />
-                          <span className="text-slate-700">{getCat(row.categoryId)?.name ?? '—'}</span>
+                          <span className="text-slate-700">{categoryNameMap.get(row.categoryId) ?? '—'}</span>
                         </div>
                       </td>
                       <td className="py-1.5 text-right font-mono font-[500] text-emerald-600">{fmt(row.saved)}</td>
@@ -851,8 +859,8 @@ export function PayPeriodDetailPage() {
           >
             <option value="">All Categories</option>
             {payPeriod.allocations.map(a => {
-              const cat = getCat(a.categoryId);
-              return cat ? <option key={a.categoryId} value={a.categoryId}>{cat.name}</option> : null;
+              const catName = categoryNameMap.get(a.categoryId);
+              return catName ? <option key={a.categoryId} value={a.categoryId}>{catName}</option> : null;
             })}
           </select>
           <select
@@ -887,15 +895,13 @@ export function PayPeriodDetailPage() {
                 </div>
                 <div className="rounded-[10px] border-[0.5px] border-slate-100 overflow-hidden">
                   {txns.map(t => {
-                    const cat = getCat(t.categoryId);
+                    const catName = categoryNameMap.get(t.categoryId) ?? '—';
                     const sub = getSubCat(t.subCategoryId);
-                    const bucketLabel = sub
-                      ? `${cat?.name ?? ''} › ${sub.name}`
-                      : (cat?.name ?? '—');
+                    const bucketLabel = sub ? `${catName} › ${sub.name}` : catName;
                     return (
                       <div key={t.id} className="flex items-center gap-3 px-3 py-2.5 border-b border-[0.5px] border-slate-50 last:border-0 hover:bg-slate-50 group">
                         <div className={`w-[30px] h-[30px] rounded-[6px] flex items-center justify-center shrink-0 text-white text-[11px] font-semibold ${categoryBgColor(t.categoryId)}`}>
-                          {categoryInitials(cat?.name ?? '?')}
+                          {categoryInitials(categoryNameMap.get(t.categoryId) ?? '?')}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm text-slate-800">{t.description}</div>
@@ -966,7 +972,7 @@ export function PayPeriodDetailPage() {
       {savingsTransferAllocationId && savingsTransferAllocation && (
         <SavingsTransferModal
           payPeriod={{ payDate: payPeriod.payDate, endDate: payPeriod.endDate }}
-          categoryName={getCat(savingsTransferAllocation.categoryId)?.name ?? ''}
+          categoryName={categoryNameMap.get(savingsTransferAllocation.categoryId) ?? ''}
           onSubmit={handleAddSavingsTransfer}
           onClose={() => setSavingsTransferAllocationId(null)}
         />
@@ -976,7 +982,7 @@ export function PayPeriodDetailPage() {
       {editingSavingsTransfer && editingSavingsTransferAllocation && (
         <SavingsTransferModal
           payPeriod={{ payDate: payPeriod.payDate, endDate: payPeriod.endDate }}
-          categoryName={getCat(editingSavingsTransferAllocation.categoryId)?.name ?? ''}
+          categoryName={categoryNameMap.get(editingSavingsTransferAllocation.categoryId) ?? ''}
           initialData={editingSavingsTransfer}
           onSubmit={handleEditSavingsTransfer}
           onClose={() => setEditingSavingsTransfer(null)}
@@ -988,11 +994,11 @@ export function PayPeriodDetailPage() {
         const expenseAlloc = payPeriod.allocations.find(a => a.id === moveSurplusAllocationId)!;
         const savingsOptions = payPeriod.allocations
           .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
-          .map(a => ({ id: a.id, categoryName: getCat(a.categoryId)?.name ?? '—' }));
+          .map(a => ({ id: a.id, categoryName: categoryNameMap.get(a.categoryId) ?? '—' }));
         return (
           <MoveSurplusToSavingsModal
             payPeriod={{ payDate: payPeriod.payDate, endDate: payPeriod.endDate }}
-            expenseCategoryName={getCat(expenseAlloc.categoryId)?.name ?? '—'}
+            expenseCategoryName={categoryNameMap.get(expenseAlloc.categoryId) ?? '—'}
             remainingBalance={expenseAlloc.currentBalance}
             savingsAllocations={savingsOptions}
             onSubmit={handleMoveSurplus}
@@ -1009,7 +1015,7 @@ export function PayPeriodDetailPage() {
             .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
             .map(a => ({
               id: a.id,
-              categoryName: getCat(a.categoryId)?.name ?? '—',
+              categoryName: categoryNameMap.get(a.categoryId) ?? '—',
               remainingBalance: Math.max(0, a.currentBalance),
             }))}
           submitLabel={overspendModalMode === 'close' ? 'Resolve & Close' : 'Save Resolution'}

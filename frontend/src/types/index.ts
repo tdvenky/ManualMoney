@@ -55,6 +55,7 @@ export interface SavingsTransfer {
 export interface Allocation {
   id: string;
   categoryId: string;
+  categoryName?: string;
   allocatedAmount: number;
   currentBalance: number;
   transactions: Transaction[];

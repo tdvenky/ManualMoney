@@ -179,6 +179,7 @@ public class PayPeriodService {
                         "Cannot allocate " + allocatedAmount + ". Only " + unallocated + " is unallocated.");
             }
             Allocation allocation = new Allocation(categoryId, allocatedAmount);
+            repository.findCategoryById(categoryId).ifPresent(c -> allocation.setCategoryName(c.getName()));
             payPeriod.getAllocations().add(allocation);
             repository.savePayPeriod(payPeriod);
             return allocation;
