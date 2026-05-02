@@ -1,10 +1,9 @@
 import { useState } from 'react';
 
 interface PayPeriodFormProps {
-  onSubmit: (payDate: string, endDate: string, amount: number) => void;
+  onSubmit: (payDate: string, endDate: string) => void;
   initialPayDate?: string;
   initialEndDate?: string;
-  initialAmount?: number;
   submitLabel?: string;
   onCancel?: () => void;
 }
@@ -13,13 +12,11 @@ export function PayPeriodForm({
   onSubmit,
   initialPayDate = new Date().toISOString().split('T')[0],
   initialEndDate = '',
-  initialAmount = 0,
   submitLabel = 'Create',
   onCancel,
 }: PayPeriodFormProps) {
   const [payDate, setPayDate] = useState(initialPayDate);
   const [endDate, setEndDate] = useState(initialEndDate || getDefaultEndDate(initialPayDate));
-  const [amount, setAmount] = useState(initialAmount.toString());
 
   function getDefaultEndDate(startDate: string): string {
     const date = new Date(startDate);
@@ -36,9 +33,8 @@ export function PayPeriodForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (payDate && endDate && amount) {
-      onSubmit(payDate, endDate, parseFloat(amount));
-      setAmount('0');
+    if (payDate && endDate) {
+      onSubmit(payDate, endDate);
     }
   };
 
@@ -68,18 +64,6 @@ export function PayPeriodForm({
             required
           />
         </div>
-      </div>
-      <div>
-        <label className="block text-[11px] font-medium text-slate-500 mb-1">Amount</label>
-        <input
-          type="number"
-          step="0.01"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className={inputClass}
-          placeholder="0.00"
-          required
-        />
       </div>
       <div className="flex gap-2 pt-1">
         <button

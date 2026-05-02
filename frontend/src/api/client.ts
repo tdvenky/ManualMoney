@@ -2,6 +2,7 @@ import axios from 'axios';
 import type {
   Category,
   SubCategory,
+  Income,
   PayPeriod,
   Allocation,
   Transaction,
@@ -13,6 +14,8 @@ import type {
   UpdateSubCategoryRequest,
   CreatePayPeriodRequest,
   UpdatePayPeriodRequest,
+  CreateIncomeRequest,
+  UpdateIncomeRequest,
   CreateAllocationRequest,
   UpdateAllocationRequest,
   CreateTransactionRequest,
@@ -111,6 +114,21 @@ export const closePayPeriod = async (id: string, resolution?: ClosePayPeriodRequ
 export const reopenPayPeriod = async (id: string): Promise<PayPeriod> => {
   const response = await api.put<PayPeriod>(`/payperiods/${id}/reopen`);
   return response.data;
+};
+
+// Income API
+export const addIncome = async (payPeriodId: string, data: CreateIncomeRequest): Promise<Income> => {
+  const response = await api.post<Income>(`/payperiods/${payPeriodId}/incomes`, data);
+  return response.data;
+};
+
+export const updateIncome = async (id: string, data: UpdateIncomeRequest): Promise<Income> => {
+  const response = await api.put<Income>(`/incomes/${id}`, data);
+  return response.data;
+};
+
+export const deleteIncome = async (id: string): Promise<void> => {
+  await api.delete(`/incomes/${id}`);
 };
 
 // Allocation API

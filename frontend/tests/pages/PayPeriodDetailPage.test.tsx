@@ -13,6 +13,9 @@ vi.mock('../../src/api/client', () => ({
   getPayPeriod: vi.fn(),
   getCategories: vi.fn(),
   getSubCategories: vi.fn(),
+  addIncome: vi.fn(),
+  updateIncome: vi.fn(),
+  deleteIncome: vi.fn(),
   addAllocation: vi.fn(),
   updateAllocation: vi.fn(),
   deleteAllocation: vi.fn(),
@@ -36,6 +39,7 @@ const mockPayPeriod: PayPeriod = {
   payDate: '2024-01-01',
   endDate: '2024-01-15',
   amount: 2000,
+  incomes: [],
   status: 'ACTIVE',
   allocations: [
     {

@@ -155,7 +155,7 @@ public class JsonDataRepository {
             PayPeriod p = existing.get();
             p.setPayDate(payPeriod.getPayDate());
             p.setEndDate(payPeriod.getEndDate());
-            p.setAmount(payPeriod.getAmount());
+            p.setIncomes(payPeriod.getIncomes());
             p.setAllocations(payPeriod.getAllocations());
             p.setStatus(payPeriod.getStatus());
             p.setUpdatedAt(LocalDateTime.now());
@@ -169,6 +169,20 @@ public class JsonDataRepository {
     public void deletePayPeriod(UUID id) {
         appData.getPayPeriods().removeIf(p -> p.getId().equals(id));
         saveData();
+    }
+
+    // Income operations
+    public Optional<Income> findIncomeById(UUID id) {
+        return appData.getPayPeriods().stream()
+                .flatMap(p -> p.getIncomes().stream())
+                .filter(i -> i.getId().equals(id))
+                .findFirst();
+    }
+
+    public Optional<PayPeriod> findPayPeriodByIncomeId(UUID incomeId) {
+        return appData.getPayPeriods().stream()
+                .filter(p -> p.getIncomes().stream().anyMatch(i -> i.getId().equals(incomeId)))
+                .findFirst();
     }
 
     // Allocation operations

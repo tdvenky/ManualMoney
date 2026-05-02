@@ -29,18 +29,69 @@ public class PayPeriodService {
         return repository.findPayPeriodById(id);
     }
 
-    public PayPeriod createPayPeriod(LocalDate payDate, LocalDate endDate, BigDecimal amount) {
-        PayPeriod payPeriod = new PayPeriod(payDate, endDate, amount);
+    public PayPeriod createPayPeriod(LocalDate payDate, LocalDate endDate) {
+        PayPeriod payPeriod = new PayPeriod(payDate, endDate);
         return repository.savePayPeriod(payPeriod);
     }
 
-    public Optional<PayPeriod> updatePayPeriod(UUID id, LocalDate payDate, LocalDate endDate, BigDecimal amount) {
+    public Optional<PayPeriod> updatePayPeriod(UUID id, LocalDate payDate, LocalDate endDate) {
         return repository.findPayPeriodById(id).map(payPeriod -> {
             payPeriod.setPayDate(payDate);
             payPeriod.setEndDate(endDate);
-            payPeriod.setAmount(amount);
             return repository.savePayPeriod(payPeriod);
         });
+    }
+
+    public Optional<Income> addIncome(UUID payPeriodId, String description, BigDecimal amount, LocalDate date) {
+        return repository.findPayPeriodById(payPeriodId).map(payPeriod -> {
+            Income income = new Income(description, amount, date);
+            payPeriod.getIncomes().add(income);
+            repository.savePayPeriod(payPeriod);
+            return income;
+        });
+    }
+
+    public Optional<Income> updateIncome(UUID incomeId, String description, BigDecimal amount, LocalDate date) {
+        return repository.findIncomeById(incomeId).map(income -> {
+            PayPeriod payPeriod = repository.findPayPeriodByIncomeId(incomeId)
+                    .orElseThrow(() -> new RuntimeException("Pay period not found for income"));
+            BigDecimal totalAllocated = payPeriod.getAllocations().stream()
+                    .map(Allocation::getAllocatedAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal newTotal = payPeriod.getIncomes().stream()
+                    .map(i -> i.getId().equals(incomeId) ? amount : i.getAmount())
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            if (newTotal.compareTo(totalAllocated) < 0) {
+                throw new IllegalArgumentException(
+                        "Cannot reduce income below total allocated amount of " + totalAllocated);
+            }
+            income.setDescription(description);
+            income.setAmount(amount);
+            income.setDate(date);
+            income.setUpdatedAt(LocalDateTime.now());
+            repository.save();
+            return income;
+        });
+    }
+
+    public boolean deleteIncome(UUID incomeId) {
+        Optional<PayPeriod> payPeriodOpt = repository.findPayPeriodByIncomeId(incomeId);
+        if (!payPeriodOpt.isPresent()) return false;
+        PayPeriod payPeriod = payPeriodOpt.get();
+        BigDecimal totalAllocated = payPeriod.getAllocations().stream()
+                .map(Allocation::getAllocatedAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal newTotal = payPeriod.getIncomes().stream()
+                .filter(i -> !i.getId().equals(incomeId))
+                .map(Income::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (newTotal.compareTo(totalAllocated) < 0) {
+            throw new IllegalArgumentException(
+                    "Cannot delete income: remaining total would be less than allocated amount of " + totalAllocated);
+        }
+        boolean removed = payPeriod.getIncomes().removeIf(i -> i.getId().equals(incomeId));
+        if (removed) repository.savePayPeriod(payPeriod);
+        return removed;
     }
 
     public Optional<PayPeriod> resolveOverspend(UUID id,

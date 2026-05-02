@@ -20,6 +20,7 @@ const mockActivePayPeriod: PayPeriod = {
   payDate: '2024-01-01',
   endDate: '2024-01-15',
   amount: 2000,
+  incomes: [],
   status: 'ACTIVE',
   allocations: [
     {
@@ -42,6 +43,7 @@ const mockClosedPayPeriod: PayPeriod = {
   payDate: '2023-12-01',
   endDate: '2023-12-15',
   amount: 1800,
+  incomes: [],
   status: 'CLOSED',
   allocations: [],
   createdAt: '',

@@ -58,9 +58,9 @@ export function PayPeriodsPage() {
         return s + transferred - withdrawn;
       }, 0);
 
-  const handleCreate = async (payDate: string, endDate: string, amount: number) => {
+  const handleCreate = async (payDate: string, endDate: string) => {
     try {
-      const newPayPeriod = await api.createPayPeriod({ payDate, endDate, amount });
+      const newPayPeriod = await api.createPayPeriod({ payDate, endDate });
       setShowNewModal(false);
       navigate(`/payperiods/${newPayPeriod.id}`);
     } catch {

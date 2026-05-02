@@ -7,9 +7,9 @@ export function NewPayPeriodPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async (payDate: string, endDate: string, amount: number) => {
+  const handleSubmit = async (payDate: string, endDate: string) => {
     try {
-      const newPayPeriod = await api.createPayPeriod({ payDate, endDate, amount });
+      const newPayPeriod = await api.createPayPeriod({ payDate, endDate });
       navigate(`/payperiods/${newPayPeriod.id}`);
     } catch (err) {
       setError('Failed to create pay period');

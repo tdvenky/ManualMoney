@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import type { PayPeriod, Category, SubCategory, Transaction, SavingsTransfer, Priority, ClosePayPeriodRequest } from '../types';
+import type { PayPeriod, Category, SubCategory, Income, Transaction, SavingsTransfer, Priority, ClosePayPeriodRequest } from '../types';
 import { PRIORITY_LABELS } from '../types';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { SavingsTransferModal } from '../components/SavingsTransferModal';
@@ -50,6 +50,15 @@ export function PayPeriodDetailPage() {
   const [overspendModalMode, setOverspendModalMode] = useState<'resolve' | 'close' | null>(null);
   // Move surplus to savings modal
   const [moveSurplusAllocationId, setMoveSurplusAllocationId] = useState<string | null>(null);
+  // Income state
+  const [showAddIncome, setShowAddIncome] = useState(false);
+  const [addingIncomeDesc, setAddingIncomeDesc] = useState('');
+  const [addingIncomeAmount, setAddingIncomeAmount] = useState('');
+  const [addingIncomeDate, setAddingIncomeDate] = useState('');
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null);
+  const [editingIncomeDesc, setEditingIncomeDesc] = useState('');
+  const [editingIncomeAmount, setEditingIncomeAmount] = useState('');
+  const [editingIncomeDate, setEditingIncomeDate] = useState('');
 
   useEffect(() => {
     if (id) loadData();
@@ -332,6 +341,43 @@ export function PayPeriodDetailPage() {
       await loadData();
     } catch {
       setError('Failed to delete transaction');
+    }
+  };
+
+  const handleAddIncome = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addingIncomeDesc || !addingIncomeAmount || !addingIncomeDate) return;
+    try {
+      await api.addIncome(id!, { description: addingIncomeDesc, amount: parseFloat(addingIncomeAmount), date: addingIncomeDate });
+      setAddingIncomeDesc('');
+      setAddingIncomeAmount('');
+      setAddingIncomeDate('');
+      setShowAddIncome(false);
+      await loadData();
+    } catch {
+      setError('Failed to add income');
+    }
+  };
+
+  const handleUpdateIncome = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingIncome) return;
+    try {
+      await api.updateIncome(editingIncome.id, { description: editingIncomeDesc, amount: parseFloat(editingIncomeAmount), date: editingIncomeDate });
+      setEditingIncome(null);
+      await loadData();
+    } catch {
+      setError('Failed to update income');
+    }
+  };
+
+  const handleDeleteIncome = async (incomeId: string) => {
+    if (!confirm('Delete this income entry?')) return;
+    try {
+      await api.deleteIncome(incomeId);
+      await loadData();
+    } catch {
+      setError('Failed to delete income');
     }
   };
 
@@ -674,6 +720,155 @@ export function PayPeriodDetailPage() {
             <div className={`font-mono font-[500] text-[20px] ${valueClass}`}>{value}</div>
           </div>
         ))}
+      </div>
+
+      {/* Income */}
+      <div className="bg-white border-[0.5px] border-slate-200 rounded-[10px] p-5">
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-[11px] font-bold text-slate-500 tracking-wider">INCOME</h2>
+          {isActive && (
+            <button
+              onClick={() => { setShowAddIncome(v => !v); setAddingIncomeDate(payPeriod.payDate); }}
+              className="px-3 py-1.5 text-sm bg-slate-700 rounded-[7px] hover:bg-slate-600 text-white"
+            >
+              {showAddIncome ? 'Cancel' : 'Add Income'}
+            </button>
+          )}
+        </div>
+
+        {isActive && showAddIncome && (
+          <form onSubmit={handleAddIncome} className="mb-4 flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="block text-[11px] text-slate-500 mb-1">Description</label>
+              <input
+                type="text"
+                value={addingIncomeDesc}
+                onChange={e => setAddingIncomeDesc(e.target.value)}
+                placeholder="e.g. Salary, Bonus"
+                className="w-full border-[0.5px] border-slate-300 rounded-[7px] px-2 py-2.5 text-sm"
+                required
+              />
+            </div>
+            <div className="w-32">
+              <label className="block text-[11px] text-slate-500 mb-1">Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                value={addingIncomeAmount}
+                onChange={e => setAddingIncomeAmount(e.target.value)}
+                placeholder="0.00"
+                className="w-full border-[0.5px] border-slate-300 rounded-[7px] px-2 py-2.5 text-sm font-mono"
+                required
+              />
+            </div>
+            <div className="w-36">
+              <label className="block text-[11px] text-slate-500 mb-1">Date</label>
+              <input
+                type="date"
+                value={addingIncomeDate}
+                onChange={e => setAddingIncomeDate(e.target.value)}
+                className="w-full border-[0.5px] border-slate-300 rounded-[7px] px-2 py-2.5 text-sm"
+                required
+              />
+            </div>
+            <button type="submit" className="px-3 py-2.5 bg-emerald-600 text-white text-sm rounded-[7px] hover:bg-emerald-700">
+              Add
+            </button>
+          </form>
+        )}
+
+        {payPeriod.incomes.length === 0 ? (
+          <div className="text-sm text-slate-400 text-center py-3">No income added yet.</div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-[0.5px] border-slate-200 text-slate-500 text-xs">
+                <th className="text-left py-1 font-medium">Date</th>
+                <th className="text-left py-1 font-medium">Description</th>
+                <th className="text-right py-1 font-medium">Amount</th>
+                {isActive && <th className="w-16"></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {payPeriod.incomes.map(inc => (
+                <tr key={inc.id} className="border-b border-[0.5px] border-slate-100 group">
+                  {editingIncome?.id === inc.id ? (
+                    <>
+                      <td className="py-2">
+                        <input
+                          type="date"
+                          value={editingIncomeDate}
+                          onChange={e => setEditingIncomeDate(e.target.value)}
+                          className="w-full border-[0.5px] border-slate-300 rounded px-1.5 py-0.5 text-xs"
+                        />
+                      </td>
+                      <td className="py-2 pr-2">
+                        <input
+                          type="text"
+                          value={editingIncomeDesc}
+                          onChange={e => setEditingIncomeDesc(e.target.value)}
+                          className="w-full border-[0.5px] border-slate-300 rounded px-1.5 py-0.5 text-xs"
+                        />
+                      </td>
+                      <td className="py-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editingIncomeAmount}
+                          onChange={e => setEditingIncomeAmount(e.target.value)}
+                          className="w-full border-[0.5px] border-slate-300 rounded px-1.5 py-0.5 text-xs font-mono text-right"
+                        />
+                      </td>
+                      <td className="py-2 pl-2">
+                        <form onSubmit={handleUpdateIncome} className="flex gap-1 justify-end">
+                          <button type="submit" className="text-xs text-emerald-600 hover:underline">Save</button>
+                          <button type="button" onClick={() => setEditingIncome(null)} className="text-xs text-slate-400 hover:underline">Cancel</button>
+                        </form>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="py-2.5 text-slate-500 text-xs">{fmtDateShort(inc.date)}</td>
+                      <td className="py-2.5 text-slate-800">{inc.description}</td>
+                      <td className="py-2.5 text-right font-mono text-slate-800">{fmt(inc.amount)}</td>
+                      {isActive && (
+                        <td className="py-2.5 pl-2">
+                          <div className="flex gap-2 justify-end items-center opacity-0 group-hover:opacity-100">
+                            <button
+                              onClick={() => { setEditingIncome(inc); setEditingIncomeDesc(inc.description); setEditingIncomeAmount(String(inc.amount)); setEditingIncomeDate(inc.date); }}
+                              className="text-slate-400 hover:text-emerald-600"
+                              title="Edit"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteIncome(inc.id)}
+                              className="text-slate-400 hover:text-red-500"
+                              title="Delete"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-slate-200 border-t border-slate-300 [&>td:first-child]:rounded-l-[6px] [&>td:last-child]:rounded-r-[6px]">
+                <td className="py-2 px-1 font-semibold text-slate-800" colSpan={2}>Total</td>
+                <td className="py-2 px-1 text-right font-mono font-semibold text-slate-800">{fmt(payPeriod.amount)}</td>
+                {isActive && <td />}
+              </tr>
+            </tfoot>
+          </table>
+        )}
       </div>
 
       {/* Summary */}

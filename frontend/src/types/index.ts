@@ -64,11 +64,21 @@ export interface Allocation {
   updatedAt: string;
 }
 
+export interface Income {
+  id: string;
+  description: string;
+  amount: number;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PayPeriod {
   id: string;
   payDate: string;
   endDate: string;
   amount: number;
+  incomes: Income[];
   allocations: Allocation[];
   status: PayPeriodStatus;
   carryForwardAmount?: number;
@@ -114,13 +124,23 @@ export interface UpdateSubCategoryRequest {
 export interface CreatePayPeriodRequest {
   payDate: string;
   endDate: string;
-  amount: number;
 }
 
 export interface UpdatePayPeriodRequest {
   payDate: string;
   endDate: string;
+}
+
+export interface CreateIncomeRequest {
+  description: string;
   amount: number;
+  date: string;
+}
+
+export interface UpdateIncomeRequest {
+  description: string;
+  amount: number;
+  date: string;
 }
 
 export interface CreateAllocationRequest {

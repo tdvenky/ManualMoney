@@ -8,8 +8,6 @@ describe('PayPeriodForm', () => {
 
     expect(screen.getByText('Start Date')).toBeInTheDocument();
     expect(screen.getByText('End Date')).toBeInTheDocument();
-    expect(screen.getByText('Amount')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('0.00')).toBeInTheDocument();
   });
 
   it('renders with initial values', () => {
@@ -18,13 +16,11 @@ describe('PayPeriodForm', () => {
         onSubmit={vi.fn()}
         initialPayDate="2024-01-01"
         initialEndDate="2024-01-15"
-        initialAmount={2000}
       />
     );
 
     expect(screen.getByDisplayValue('2024-01-01')).toBeInTheDocument();
     expect(screen.getByDisplayValue('2024-01-15')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2000')).toBeInTheDocument();
   });
 
   it('calls onSubmit with form values', () => {
@@ -34,13 +30,12 @@ describe('PayPeriodForm', () => {
         onSubmit={onSubmit}
         initialPayDate="2024-01-01"
         initialEndDate="2024-01-15"
-        initialAmount={2500}
       />
     );
 
     fireEvent.click(screen.getByText('Create'));
 
-    expect(onSubmit).toHaveBeenCalledWith('2024-01-01', '2024-01-15', 2500);
+    expect(onSubmit).toHaveBeenCalledWith('2024-01-01', '2024-01-15');
   });
 
   it('shows custom submit label', () => {
@@ -73,23 +68,10 @@ describe('PayPeriodForm', () => {
     );
 
     const startDateInput = screen.getByDisplayValue('2024-01-01');
-    // Change pay date to after the current end date
     fireEvent.change(startDateInput, {
       target: { value: '2024-02-01' },
     });
 
-    // End date should auto-update (2 weeks from new start)
     expect(screen.getByDisplayValue('2024-02-14')).toBeInTheDocument();
-  });
-
-  it('updates amount field', () => {
-    render(<PayPeriodForm onSubmit={vi.fn()} />);
-
-    const amountInput = screen.getByPlaceholderText('0.00');
-    fireEvent.change(amountInput, {
-      target: { value: '3000' },
-    });
-
-    expect(screen.getByDisplayValue('3000')).toBeInTheDocument();
   });
 });

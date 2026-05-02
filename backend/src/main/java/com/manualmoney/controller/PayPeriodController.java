@@ -1,6 +1,7 @@
 package com.manualmoney.controller;
 
 import com.manualmoney.model.Allocation;
+import com.manualmoney.model.Income;
 import com.manualmoney.model.PayPeriod;
 import com.manualmoney.model.Priority;
 import com.manualmoney.model.SavingsTransfer;
@@ -53,14 +54,40 @@ public class PayPeriodController {
 
     @PostMapping("/payperiods")
     public PayPeriod createPayPeriod(@RequestBody CreatePayPeriodRequest request) {
-        return payPeriodService.createPayPeriod(request.getPayDate(), request.getEndDate(), request.getAmount());
+        return payPeriodService.createPayPeriod(request.getPayDate(), request.getEndDate());
     }
 
     @PutMapping("/payperiods/{id}")
     public ResponseEntity<PayPeriod> updatePayPeriod(@PathVariable UUID id, @RequestBody UpdatePayPeriodRequest request) {
-        return payPeriodService.updatePayPeriod(id, request.getPayDate(), request.getEndDate(), request.getAmount())
+        return payPeriodService.updatePayPeriod(id, request.getPayDate(), request.getEndDate())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/payperiods/{id}/incomes")
+    public ResponseEntity<Income> addIncome(@PathVariable UUID id, @RequestBody IncomeRequest request) {
+        return payPeriodService.addIncome(id, request.getDescription(), request.getAmount(), request.getDate())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/incomes/{id}")
+    public ResponseEntity<Income> updateIncome(@PathVariable UUID id, @RequestBody IncomeRequest request) {
+        return payPeriodService.updateIncome(id, request.getDescription(), request.getAmount(), request.getDate())
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/incomes/{id}")
+    public ResponseEntity<Void> deleteIncome(@PathVariable UUID id) {
+        try {
+            if (payPeriodService.deleteIncome(id)) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     @DeleteMapping("/payperiods/{id}")
@@ -174,27 +201,34 @@ public class PayPeriodController {
     public static class CreatePayPeriodRequest {
         private LocalDate payDate;
         private LocalDate endDate;
-        private BigDecimal amount;
 
         public LocalDate getPayDate() { return payDate; }
         public void setPayDate(LocalDate payDate) { this.payDate = payDate; }
         public LocalDate getEndDate() { return endDate; }
         public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
-        public BigDecimal getAmount() { return amount; }
-        public void setAmount(BigDecimal amount) { this.amount = amount; }
     }
 
     public static class UpdatePayPeriodRequest {
         private LocalDate payDate;
         private LocalDate endDate;
-        private BigDecimal amount;
 
         public LocalDate getPayDate() { return payDate; }
         public void setPayDate(LocalDate payDate) { this.payDate = payDate; }
         public LocalDate getEndDate() { return endDate; }
         public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
+    }
+
+    public static class IncomeRequest {
+        private String description;
+        private BigDecimal amount;
+        private LocalDate date;
+
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
         public BigDecimal getAmount() { return amount; }
         public void setAmount(BigDecimal amount) { this.amount = amount; }
+        public LocalDate getDate() { return date; }
+        public void setDate(LocalDate date) { this.date = date; }
     }
 
     public static class CreateAllocationRequest {

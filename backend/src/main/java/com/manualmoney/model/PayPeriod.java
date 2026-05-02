@@ -12,6 +12,7 @@ public class PayPeriod {
     private LocalDate payDate;
     private LocalDate endDate;
     private BigDecimal amount;
+    private List<Income> incomes;
     private List<Allocation> allocations;
     private PayPeriodStatus status;
     private BigDecimal carryForwardAmount;
@@ -20,10 +21,18 @@ public class PayPeriod {
 
     public PayPeriod() {
         this.id = UUID.randomUUID();
+        this.incomes = new ArrayList<>();
         this.allocations = new ArrayList<>();
         this.status = PayPeriodStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public PayPeriod(LocalDate payDate, LocalDate endDate) {
+        this();
+        this.payDate = payDate;
+        this.endDate = endDate;
+        this.amount = BigDecimal.ZERO;
     }
 
     public PayPeriod(LocalDate payDate, LocalDate endDate, BigDecimal amount) {
@@ -33,75 +42,46 @@ public class PayPeriod {
         this.amount = amount;
     }
 
-    public UUID getId() {
-        return id;
-    }
+    public UUID getId() { return id; }
+    public void setId(UUID id) { this.id = id; }
 
-    public void setId(UUID id) {
-        this.id = id;
-    }
+    public LocalDate getPayDate() { return payDate; }
+    public void setPayDate(LocalDate payDate) { this.payDate = payDate; }
 
-    public LocalDate getPayDate() {
-        return payDate;
-    }
-
-    public void setPayDate(LocalDate payDate) {
-        this.payDate = payDate;
-    }
-
-    public LocalDate getEndDate() {
-        return endDate;
-    }
-
-    public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate;
-    }
+    public LocalDate getEndDate() { return endDate; }
+    public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
 
     public BigDecimal getAmount() {
-        return amount;
+        if (incomes != null && !incomes.isEmpty()) {
+            return incomes.stream()
+                    .map(Income::getAmount)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+        return amount != null ? amount : BigDecimal.ZERO;
     }
 
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+
+    public List<Income> getIncomes() {
+        return incomes != null ? incomes : new ArrayList<>();
     }
 
-    public List<Allocation> getAllocations() {
-        return allocations;
+    public void setIncomes(List<Income> incomes) {
+        this.incomes = incomes != null ? incomes : new ArrayList<>();
     }
 
-    public void setAllocations(List<Allocation> allocations) {
-        this.allocations = allocations;
-    }
+    public List<Allocation> getAllocations() { return allocations; }
+    public void setAllocations(List<Allocation> allocations) { this.allocations = allocations; }
 
-    public PayPeriodStatus getStatus() {
-        return status;
-    }
+    public PayPeriodStatus getStatus() { return status; }
+    public void setStatus(PayPeriodStatus status) { this.status = status; }
 
-    public void setStatus(PayPeriodStatus status) {
-        this.status = status;
-    }
+    public BigDecimal getCarryForwardAmount() { return carryForwardAmount; }
+    public void setCarryForwardAmount(BigDecimal carryForwardAmount) { this.carryForwardAmount = carryForwardAmount; }
 
-    public BigDecimal getCarryForwardAmount() {
-        return carryForwardAmount;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
 
-    public void setCarryForwardAmount(BigDecimal carryForwardAmount) {
-        this.carryForwardAmount = carryForwardAmount;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

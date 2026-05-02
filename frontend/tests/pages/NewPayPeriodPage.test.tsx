@@ -40,7 +40,8 @@ describe('NewPayPeriodPage', () => {
       id: 'pp1',
       payDate: '2024-01-01',
       endDate: '2024-01-15',
-      amount: 2000,
+      amount: 0,
+      incomes: [],
       status: 'ACTIVE',
       allocations: [],
       createdAt: '',
@@ -53,7 +54,6 @@ describe('NewPayPeriodPage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '2000' } });
     fireEvent.click(screen.getByText('Create Pay Period'));
 
     await waitFor(() => {
@@ -71,7 +71,6 @@ describe('NewPayPeriodPage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '2000' } });
     fireEvent.click(screen.getByText('Create Pay Period'));
 
     await waitFor(() => {
