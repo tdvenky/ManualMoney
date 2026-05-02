@@ -79,10 +79,10 @@ class PayPeriodServiceTest {
     void createPayPeriod_shouldCreateAndReturnPayPeriod() {
         when(repository.savePayPeriod(any(PayPeriod.class))).thenAnswer(i -> i.getArgument(0));
 
-        PayPeriod result = payPeriodService.createPayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2500"));
+        PayPeriod result = payPeriodService.createPayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15));
 
         assertNotNull(result);
-        assertEquals(new BigDecimal("2500"), result.getAmount());
+        assertEquals(BigDecimal.ZERO, result.getAmount());
         assertEquals(LocalDate.of(2024, 1, 1), result.getPayDate());
         assertEquals(LocalDate.of(2024, 1, 15), result.getEndDate());
         assertEquals(PayPeriodStatus.ACTIVE, result.getStatus());
@@ -100,12 +100,11 @@ class PayPeriodServiceTest {
         when(repository.savePayPeriod(any(PayPeriod.class))).thenAnswer(i -> i.getArgument(0));
 
         Optional<PayPeriod> result = payPeriodService.updatePayPeriod(
-                id, LocalDate.of(2024, 2, 1), LocalDate.of(2024, 2, 15), new BigDecimal("3000"));
+                id, LocalDate.of(2024, 2, 1), LocalDate.of(2024, 2, 15));
 
         assertTrue(result.isPresent());
         assertEquals(LocalDate.of(2024, 2, 1), result.get().getPayDate());
         assertEquals(LocalDate.of(2024, 2, 15), result.get().getEndDate());
-        assertEquals(new BigDecimal("3000"), result.get().getAmount());
         verify(repository).savePayPeriod(any(PayPeriod.class));
     }
 
@@ -115,7 +114,7 @@ class PayPeriodServiceTest {
         when(repository.findPayPeriodById(id)).thenReturn(Optional.empty());
 
         Optional<PayPeriod> result = payPeriodService.updatePayPeriod(
-                id, LocalDate.of(2024, 2, 1), LocalDate.of(2024, 2, 15), new BigDecimal("3000"));
+                id, LocalDate.of(2024, 2, 1), LocalDate.of(2024, 2, 15));
 
         assertFalse(result.isPresent());
         verify(repository, never()).savePayPeriod(any());

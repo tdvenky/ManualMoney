@@ -91,35 +91,34 @@ class PayPeriodControllerTest {
 
     @Test
     void createPayPeriod_shouldReturnCreatedPayPeriod() throws Exception {
-        PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15), new BigDecimal("2500"));
-        when(payPeriodService.createPayPeriod(any(LocalDate.class), any(LocalDate.class), any(BigDecimal.class)))
+        PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 15));
+        when(payPeriodService.createPayPeriod(any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(payPeriod);
 
-        String requestBody = "{\"payDate\": \"2024-01-01\", \"endDate\": \"2024-01-15\", \"amount\": 2500}";
+        String requestBody = "{\"payDate\": \"2024-01-01\", \"endDate\": \"2024-01-15\"}";
 
         mockMvc.perform(post("/api/payperiods")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.amount").value(2500));
+                .andExpect(jsonPath("$.amount").value(0));
     }
 
     // --- PUT /api/payperiods/{id} ---
 
     @Test
     void updatePayPeriod_shouldReturnUpdatedPayPeriod_whenExists() throws Exception {
-        PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 2, 1), LocalDate.of(2024, 2, 15), new BigDecimal("3000"));
+        PayPeriod payPeriod = new PayPeriod(LocalDate.of(2024, 2, 1), LocalDate.of(2024, 2, 15));
         UUID id = payPeriod.getId();
-        when(payPeriodService.updatePayPeriod(eq(id), any(LocalDate.class), any(LocalDate.class), any(BigDecimal.class)))
+        when(payPeriodService.updatePayPeriod(eq(id), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(Optional.of(payPeriod));
 
-        String requestBody = "{\"payDate\": \"2024-02-01\", \"endDate\": \"2024-02-15\", \"amount\": 3000}";
+        String requestBody = "{\"payDate\": \"2024-02-01\", \"endDate\": \"2024-02-15\"}";
 
         mockMvc.perform(put("/api/payperiods/" + id)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.amount").value(3000))
                 .andExpect(jsonPath("$.payDate").value("2024-02-01"))
                 .andExpect(jsonPath("$.endDate").value("2024-02-15"));
     }
@@ -127,10 +126,10 @@ class PayPeriodControllerTest {
     @Test
     void updatePayPeriod_shouldReturn404_whenNotExists() throws Exception {
         UUID id = UUID.randomUUID();
-        when(payPeriodService.updatePayPeriod(eq(id), any(LocalDate.class), any(LocalDate.class), any(BigDecimal.class)))
+        when(payPeriodService.updatePayPeriod(eq(id), any(LocalDate.class), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
 
-        String requestBody = "{\"payDate\": \"2024-02-01\", \"endDate\": \"2024-02-15\", \"amount\": 3000}";
+        String requestBody = "{\"payDate\": \"2024-02-01\", \"endDate\": \"2024-02-15\"}";
 
         mockMvc.perform(put("/api/payperiods/" + id)
                         .contentType(MediaType.APPLICATION_JSON)
