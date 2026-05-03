@@ -136,8 +136,9 @@ export function PayPeriodsPage() {
                 const savingsPct = pp.amount > 0 ? Math.round((savings / pp.amount) * 100) : 0;
                 return (
                   <tr key={pp.id} className="border-b border-[0.5px] border-slate-100 last:border-0 hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-800">
-                      {fmtDateShort(pp.payDate)} – {fmtDateShort(pp.endDate)}
+                    <td className="px-4 py-3">
+                      <div className="whitespace-nowrap font-medium text-slate-800">{fmtDateShort(pp.payDate)}</div>
+                      <div className="whitespace-nowrap text-xs text-slate-400">{fmtDateShort(pp.endDate)}</div>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <span className={`text-xs font-bold px-2 py-0.5 rounded ${
