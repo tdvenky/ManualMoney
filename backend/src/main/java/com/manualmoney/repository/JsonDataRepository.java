@@ -42,6 +42,7 @@ public class JsonDataRepository {
             try {
                 appData = objectMapper.readValue(file, AppData.class);
                 backfillCategoryNames();
+                backfillIncomes();
             } catch (IOException e) {
                 appData = new AppData();
             }
@@ -61,6 +62,20 @@ public class JsonDataRepository {
                         changed[0] = true;
                     }
                 }
+            }
+        }
+        if (changed[0]) {
+            saveData();
+        }
+    }
+
+    private void backfillIncomes() {
+        boolean[] changed = {false};
+        for (PayPeriod payPeriod : appData.getPayPeriods()) {
+            if (payPeriod.getIncomes().isEmpty() && payPeriod.getAmount().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                Income defaultIncome = new Income("Salary", payPeriod.getAmount(), payPeriod.getPayDate());
+                payPeriod.getIncomes().add(defaultIncome);
+                changed[0] = true;
             }
         }
         if (changed[0]) {
