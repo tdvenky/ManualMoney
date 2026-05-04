@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { PayPeriod, Category } from '../types';
+import type { PayPeriod, Category, Allocation } from '../types';
 import { PayPeriodForm } from '../components';
 import * as api from '../api/client';
 
@@ -28,6 +28,8 @@ export function PayPeriodsPage() {
     [categories]
   );
 
+  const getAllocType = (a: Allocation) => categoryMap.get(a.categoryId)?.type ?? a.categoryType ?? 'EXPENSE';
+
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
@@ -36,7 +38,7 @@ export function PayPeriodsPage() {
 
   const getTotalSpent = (pp: PayPeriod) =>
     pp.allocations
-      .filter(a => categoryMap.get(a.categoryId)?.type === 'EXPENSE')
+      .filter(a => getAllocType(a) === 'EXPENSE')
       .reduce((s, a) => s + (a.allocatedAmount - a.currentBalance), 0);
 
   const getTotalRemaining = (pp: PayPeriod) =>
@@ -47,10 +49,10 @@ export function PayPeriodsPage() {
 
   const getTotalSavings = (pp: PayPeriod) =>
     pp.allocations
-      .filter(a => categoryMap.get(a.categoryId)?.type === 'SAVINGS')
+      .filter(a => getAllocType(a) === 'SAVINGS')
       .reduce((s, a) => {
         const transferred = (a.savingsTransfers ?? [])
-          .filter(t => t.type === 'TRANSFER' || t.type == null)
+          .filter(t => (t.type === 'TRANSFER' || t.type == null) && !t.excludeFromSavings)
           .reduce((ss, t) => ss + t.amount, 0);
         const withdrawn = (a.savingsTransfers ?? [])
           .filter(t => t.type === 'HYSA_WITHDRAWAL')

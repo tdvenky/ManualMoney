@@ -230,7 +230,10 @@ public class PayPeriodService {
                         "Cannot allocate " + allocatedAmount + ". Only " + unallocated + " is unallocated.");
             }
             Allocation allocation = new Allocation(categoryId, allocatedAmount);
-            repository.findCategoryById(categoryId).ifPresent(c -> allocation.setCategoryName(c.getName()));
+            repository.findCategoryById(categoryId).ifPresent(c -> {
+                allocation.setCategoryName(c.getName());
+                allocation.setCategoryType(c.getType());
+            });
             payPeriod.getAllocations().add(allocation);
             repository.savePayPeriod(payPeriod);
             return allocation;
@@ -314,11 +317,12 @@ public class PayPeriodService {
     }
 
     public Optional<SavingsTransfer> addSavingsTransfer(UUID allocationId, BigDecimal amount,
-                                                         LocalDate date, String notes) {
+                                                         LocalDate date, String notes, boolean excludeFromSavings) {
         return repository.findAllocationById(allocationId).map(allocation -> {
             validateSavingsTransferDate(allocationId, date);
 
             SavingsTransfer transfer = new SavingsTransfer(amount, date, notes);
+            transfer.setExcludeFromSavings(excludeFromSavings);
             allocation.getSavingsTransfers().add(transfer);
 
             recalculateBalance(allocation);
@@ -328,7 +332,7 @@ public class PayPeriodService {
     }
 
     public Optional<SavingsTransfer> updateSavingsTransfer(UUID transferId, BigDecimal amount,
-                                                            LocalDate date, String notes) {
+                                                            LocalDate date, String notes, boolean excludeFromSavings) {
         return repository.findSavingsTransferById(transferId).map(transfer -> {
             Allocation allocation = repository.findAllocationBySavingsTransferId(transferId)
                     .orElseThrow(() -> new RuntimeException("Allocation not found"));
@@ -338,6 +342,7 @@ public class PayPeriodService {
             transfer.setAmount(amount);
             transfer.setDate(date);
             transfer.setNotes(notes);
+            transfer.setExcludeFromSavings(excludeFromSavings);
             transfer.setUpdatedAt(LocalDateTime.now());
 
             recalculateBalance(allocation);

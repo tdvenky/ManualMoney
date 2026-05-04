@@ -177,7 +177,7 @@ public class PayPeriodController {
     @PostMapping("/allocations/{id}/savingstransfers")
     public ResponseEntity<SavingsTransfer> addSavingsTransfer(@PathVariable UUID id,
                                                                @RequestBody SavingsTransferRequest request) {
-        return payPeriodService.addSavingsTransfer(id, request.getAmount(), request.getDate(), request.getNotes())
+        return payPeriodService.addSavingsTransfer(id, request.getAmount(), request.getDate(), request.getNotes(), request.isExcludeFromSavings())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -185,7 +185,7 @@ public class PayPeriodController {
     @PutMapping("/savingstransfers/{id}")
     public ResponseEntity<SavingsTransfer> updateSavingsTransfer(@PathVariable UUID id,
                                                                   @RequestBody SavingsTransferRequest request) {
-        return payPeriodService.updateSavingsTransfer(id, request.getAmount(), request.getDate(), request.getNotes())
+        return payPeriodService.updateSavingsTransfer(id, request.getAmount(), request.getDate(), request.getNotes(), request.isExcludeFromSavings())
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -296,6 +296,7 @@ public class PayPeriodController {
         private BigDecimal amount;
         private LocalDate date;
         private String notes;
+        private boolean excludeFromSavings;
 
         public BigDecimal getAmount() { return amount; }
         public void setAmount(BigDecimal amount) { this.amount = amount; }
@@ -303,6 +304,8 @@ public class PayPeriodController {
         public void setDate(LocalDate date) { this.date = date; }
         public String getNotes() { return notes; }
         public void setNotes(String notes) { this.notes = notes; }
+        public boolean isExcludeFromSavings() { return excludeFromSavings; }
+        public void setExcludeFromSavings(boolean excludeFromSavings) { this.excludeFromSavings = excludeFromSavings; }
     }
 
     public static class ClosePayPeriodRequest {

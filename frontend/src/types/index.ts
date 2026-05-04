@@ -48,6 +48,7 @@ export interface SavingsTransfer {
   date: string;
   notes?: string;
   type: SavingsTransferType;
+  excludeFromSavings: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +57,7 @@ export interface Allocation {
   id: string;
   categoryId: string;
   categoryName?: string;
+  categoryType?: CategoryType;
   allocatedAmount: number;
   currentBalance: number;
   transactions: Transaction[];
@@ -174,4 +176,5 @@ export interface SavingsTransferRequest {
   amount: number;
   date: string;
   notes?: string;
+  excludeFromSavings?: boolean;
 }

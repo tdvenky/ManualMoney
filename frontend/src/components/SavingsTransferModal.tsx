@@ -5,7 +5,7 @@ interface Props {
   payPeriod: { payDate: string; endDate: string };
   categoryName: string;
   initialData?: SavingsTransfer;
-  onSubmit: (data: { amount: number; date: string; notes?: string }) => Promise<void>;
+  onSubmit: (data: { amount: number; date: string; notes?: string; excludeFromSavings: boolean }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -16,6 +16,7 @@ export function SavingsTransferModal({ payPeriod, categoryName, initialData, onS
   const [amount, setAmount] = useState(initialData ? String(initialData.amount) : '');
   const [date, setDate] = useState(initialData?.date ?? today);
   const [notes, setNotes] = useState(initialData?.notes ?? '');
+  const [excludeFromSavings, setExcludeFromSavings] = useState(initialData?.excludeFromSavings ?? false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,6 +30,7 @@ export function SavingsTransferModal({ payPeriod, categoryName, initialData, onS
         amount: parseFloat(amount),
         date,
         notes: notes || undefined,
+        excludeFromSavings,
       });
       onClose();
     } catch (err: unknown) {
@@ -97,6 +99,19 @@ export function SavingsTransferModal({ payPeriod, categoryName, initialData, onS
               placeholder="e.g. Transferred to Marcus HYSA"
             />
           </div>
+
+          <label className="flex items-start gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={excludeFromSavings}
+              onChange={e => setExcludeFromSavings(e.target.checked)}
+              className="mt-0.5 accent-slate-600"
+            />
+            <div>
+              <div className="text-sm text-slate-700">Planned expense transfer</div>
+              <div className="text-[11px] text-slate-400">Exclude from savings total and percentage</div>
+            </div>
+          </label>
 
           <div className="flex gap-3 pt-2">
             <button

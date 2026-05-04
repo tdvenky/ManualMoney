@@ -13,6 +13,7 @@ public class SavingsTransfer {
     private LocalDate date;
     private String notes;
     private String type;
+    private boolean excludeFromSavings;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -50,6 +51,9 @@ public class SavingsTransfer {
 
     public String getType() { return type; }
     public void setType(String type) { this.type = type; }
+
+    public boolean isExcludeFromSavings() { return excludeFromSavings; }
+    public void setExcludeFromSavings(boolean excludeFromSavings) { this.excludeFromSavings = excludeFromSavings; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

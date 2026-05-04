@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import type { PayPeriod, Category, SubCategory, Income, Transaction, SavingsTransfer, Priority, ClosePayPeriodRequest } from '../types';
+import type { PayPeriod, Category, CategoryType, SubCategory, Income, Transaction, SavingsTransfer, Priority, ClosePayPeriodRequest } from '../types';
 import { PRIORITY_LABELS } from '../types';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { SavingsTransferModal } from '../components/SavingsTransferModal';
@@ -91,6 +91,8 @@ export function PayPeriodDetailPage() {
     new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   const getCat = (categoryId: string) => categories.find(c => c.id === categoryId);
+  const getAllocType = (a: { categoryId: string; categoryType?: CategoryType }) =>
+    getCat(a.categoryId)?.type ?? a.categoryType ?? 'EXPENSE';
   const getSubCat = (subCategoryId: string) => subCategories.find(s => s.id === subCategoryId);
 
   const categoryNameMap = useMemo(() => {
@@ -173,13 +175,10 @@ export function PayPeriodDetailPage() {
   const savingsSummary = useMemo(() => {
     if (!payPeriod) return [];
     return payPeriod.allocations
-      .filter(a => {
-        const cat = categories.find(c => c.id === a.categoryId);
-        return cat?.type === 'SAVINGS';
-      })
+      .filter(a => getAllocType(a) === 'SAVINGS')
       .map(a => ({
         categoryId: a.categoryId,
-        saved: (a.savingsTransfers ?? []).filter(t => t.type === 'TRANSFER' || t.type == null).reduce((s, t) => s + t.amount, 0)
+        saved: (a.savingsTransfers ?? []).filter(t => (t.type === 'TRANSFER' || t.type == null) && !t.excludeFromSavings).reduce((s, t) => s + t.amount, 0)
           - (a.savingsTransfers ?? []).filter(t => t.type === 'HYSA_WITHDRAWAL').reduce((s, t) => s + Math.abs(t.amount), 0),
         spent: a.transactions.reduce((s, t) => s + t.amount, 0)
           + (a.savingsTransfers ?? []).filter(t => t.type === 'OVERSPEND_OFFSET').reduce((s, t) => s + t.amount, 0),
@@ -208,12 +207,12 @@ export function PayPeriodDetailPage() {
     await loadData();
   };
 
-  const handleAddSavingsTransfer = async (data: { amount: number; date: string; notes?: string }) => {
+  const handleAddSavingsTransfer = async (data: { amount: number; date: string; notes?: string; excludeFromSavings: boolean }) => {
     await api.addSavingsTransfer(savingsTransferAllocationId!, data);
     await loadData();
   };
 
-  const handleEditSavingsTransfer = async (data: { amount: number; date: string; notes?: string }) => {
+  const handleEditSavingsTransfer = async (data: { amount: number; date: string; notes?: string; excludeFromSavings: boolean }) => {
     await api.updateSavingsTransfer(editingSavingsTransfer!.id, data);
     await loadData();
   };
@@ -243,7 +242,7 @@ export function PayPeriodDetailPage() {
     if (!payPeriod) return;
 
     const savingsWithBalance = payPeriod.allocations
-      .filter(a => getCat(a.categoryId)?.type === 'SAVINGS' && a.currentBalance > 0.005);
+      .filter(a => getAllocType(a) === 'SAVINGS' && a.currentBalance > 0.005);
     if (savingsWithBalance.length > 0) {
       const names = savingsWithBalance.map(a => categoryNameMap.get(a.categoryId) ?? '—').join(', ');
       setError(
@@ -395,13 +394,13 @@ export function PayPeriodDetailPage() {
 
   // All savings transfers across all savings allocations, sorted by date desc (includes resolution entries)
   const allSavingsTransfers = payPeriod.allocations
-    .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
+    .filter(a => getAllocType(a) === 'SAVINGS')
     .flatMap(a => (a.savingsTransfers ?? [])
       .map(s => ({ ...s, allocationId: a.id, categoryId: a.categoryId })))
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const renderAllocationTable = (type: 'EXPENSE' | 'SAVINGS') => {
-    const allocs = payPeriod.allocations.filter(a => getCat(a.categoryId)?.type === type);
+    const allocs = payPeriod.allocations.filter(a => getAllocType(a) === type);
     if (allocs.length === 0) return null;
 
     const totalAllocatedForType = allocs.reduce((s, a) => s + a.allocatedAmount, 0);
@@ -414,7 +413,7 @@ export function PayPeriodDetailPage() {
     }, 0);
     const totalSaved = type === 'SAVINGS'
       ? allocs.reduce((s, a) => {
-          const transferred = (a.savingsTransfers ?? []).filter(t => t.type === 'TRANSFER' || t.type == null).reduce((ss, t) => ss + t.amount, 0);
+          const transferred = (a.savingsTransfers ?? []).filter(t => (t.type === 'TRANSFER' || t.type == null) && !t.excludeFromSavings).reduce((ss, t) => ss + t.amount, 0);
           const withdrawn = (a.savingsTransfers ?? []).filter(t => t.type === 'HYSA_WITHDRAWAL').reduce((ss, t) => ss + Math.abs(t.amount), 0);
           return s + transferred - withdrawn;
         }, 0)
@@ -439,7 +438,7 @@ export function PayPeriodDetailPage() {
           <tbody>
             {allocs.map(a => {
               const savedAmount = type === 'SAVINGS'
-                ? (a.savingsTransfers ?? []).filter(t => t.type === 'TRANSFER' || t.type == null).reduce((s, t) => s + t.amount, 0)
+                ? (a.savingsTransfers ?? []).filter(t => (t.type === 'TRANSFER' || t.type == null) && !t.excludeFromSavings).reduce((s, t) => s + t.amount, 0)
                   - (a.savingsTransfers ?? []).filter(t => t.type === 'HYSA_WITHDRAWAL').reduce((s, t) => s + Math.abs(t.amount), 0)
                 : 0;
               const offsetSpent = type === 'SAVINGS'
@@ -495,7 +494,7 @@ export function PayPeriodDetailPage() {
                               Record Savings
                             </button>
                           )}
-                          {type === 'EXPENSE' && a.currentBalance > 0.005 && payPeriod.allocations.some(sa => getCat(sa.categoryId)?.type === 'SAVINGS') && (
+                          {type === 'EXPENSE' && a.currentBalance > 0.005 && payPeriod.allocations.some(sa => getAllocType(sa) === 'SAVINGS') && (
                             <button
                               onClick={() => setMoveSurplusAllocationId(a.id)}
                               className="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-[0.5px] border-emerald-200 whitespace-nowrap"
@@ -587,7 +586,12 @@ export function PayPeriodDetailPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm text-slate-700">{label}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm text-slate-700">{label}</span>
+                        {isRegular && s.excludeFromSavings && (
+                          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 leading-none whitespace-nowrap">planned expense</span>
+                        )}
+                      </div>
                       <div className="text-[11px] text-slate-400">{fmtDateShort(s.date)}{s.notes ? ` · ${s.notes}` : ''}</div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -1188,7 +1192,7 @@ export function PayPeriodDetailPage() {
       {moveSurplusAllocationId && (() => {
         const expenseAlloc = payPeriod.allocations.find(a => a.id === moveSurplusAllocationId)!;
         const savingsOptions = payPeriod.allocations
-          .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
+          .filter(a => getAllocType(a) === 'SAVINGS')
           .map(a => ({ id: a.id, categoryName: categoryNameMap.get(a.categoryId) ?? '—' }));
         return (
           <MoveSurplusToSavingsModal
@@ -1207,7 +1211,7 @@ export function PayPeriodDetailPage() {
         <OverspendResolutionModal
           overspend={overspend}
           savingsAllocations={payPeriod.allocations
-            .filter(a => getCat(a.categoryId)?.type === 'SAVINGS')
+            .filter(a => getAllocType(a) === 'SAVINGS')
             .map(a => ({
               id: a.id,
               categoryName: categoryNameMap.get(a.categoryId) ?? '—',

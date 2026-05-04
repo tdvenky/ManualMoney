@@ -46,7 +46,7 @@ export function AddTransactionModal({ payPeriod, allocations, categories, subCat
 
   const allocationForCategory = allocations.find(a => a.categoryId === categoryId);
   const selectedCategory = categories.find(c => c.id === categoryId);
-  const isSavingsCategory = selectedCategory?.type === 'SAVINGS';
+  const isSavingsCategory = selectedCategory?.type === 'SAVINGS' || allocationForCategory?.categoryType === 'SAVINGS';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -111,9 +111,9 @@ export function AddTransactionModal({ payPeriod, allocations, categories, subCat
             >
               <option value="">Select category...</option>
               {allocations.map(a => {
-                const cat = categories.find(c => c.id === a.categoryId);
-                return cat ? (
-                  <option key={a.categoryId} value={a.categoryId}>{cat.name}</option>
+                const name = categories.find(c => c.id === a.categoryId)?.name ?? a.categoryName;
+                return name ? (
+                  <option key={a.categoryId} value={a.categoryId}>{name}</option>
                 ) : null;
               })}
             </select>
