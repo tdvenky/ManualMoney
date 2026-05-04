@@ -112,6 +112,40 @@ export function CategoriesPage() {
     }
   };
 
+  const handleMoveCategory = async (id: string, direction: 'up' | 'down') => {
+    const cat = categories.find(c => c.id === id)!;
+    const group = categories.filter(c => c.type === cat.type);
+    const idx = group.findIndex(c => c.id === id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= group.length) return;
+    const newGroup = [...group];
+    [newGroup[idx], newGroup[swapIdx]] = [newGroup[swapIdx], newGroup[idx]];
+    const other = categories.filter(c => c.type !== cat.type);
+    const newCategories = cat.type === 'EXPENSE' ? [...newGroup, ...other] : [...other, ...newGroup];
+    setCategories(newCategories);
+    try {
+      await api.reorderCategories(newCategories.map(c => c.id));
+    } catch {
+      setError('Failed to reorder categories');
+      setCategories(categories);
+    }
+  };
+
+  const handleMoveSubCategory = async (id: string, direction: 'up' | 'down') => {
+    const idx = subCategories.findIndex(s => s.id === id);
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= subCategories.length) return;
+    const newList = [...subCategories];
+    [newList[idx], newList[swapIdx]] = [newList[swapIdx], newList[idx]];
+    setSubCategories(newList);
+    try {
+      await api.reorderSubCategories(newList.map(s => s.id));
+    } catch {
+      setError('Failed to reorder sub-categories');
+      setSubCategories(subCategories);
+    }
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-slate-500">Loading...</div>;
   }
@@ -187,10 +221,16 @@ export function CategoriesPage() {
               <div>
                 <div className="text-[11px] text-slate-400 font-bold tracking-wider mb-1">EXPENSES</div>
                 <div className="space-y-0.5">
-                  {expenseCategories.map(cat => (
+                  {expenseCategories.map((cat, idx) => (
                     <div key={cat.id} className="flex justify-between items-center py-1.5 px-3 rounded-[7px] hover:bg-slate-50 group">
                       <span className="text-sm text-slate-800">{cat.name}</span>
                       <div className="flex gap-2 items-center">
+                        <button onClick={() => handleMoveCategory(cat.id, 'up')} disabled={idx === 0} className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default" title="Move up">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                        </button>
+                        <button onClick={() => handleMoveCategory(cat.id, 'down')} disabled={idx === expenseCategories.length - 1} className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default" title="Move down">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
                         <button onClick={() => openEditCategory(cat)} className="text-slate-400 hover:text-emerald-600" title="Edit">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -211,10 +251,16 @@ export function CategoriesPage() {
               <div>
                 <div className="text-[11px] text-slate-400 font-bold tracking-wider mb-1">SAVINGS</div>
                 <div className="space-y-0.5">
-                  {savingsCategories.map(cat => (
+                  {savingsCategories.map((cat, idx) => (
                     <div key={cat.id} className="flex justify-between items-center py-1.5 px-3 rounded-[7px] hover:bg-slate-50 group">
                       <span className="text-sm text-slate-800">{cat.name}</span>
                       <div className="flex gap-2 items-center">
+                        <button onClick={() => handleMoveCategory(cat.id, 'up')} disabled={idx === 0} className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default" title="Move up">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                        </button>
+                        <button onClick={() => handleMoveCategory(cat.id, 'down')} disabled={idx === savingsCategories.length - 1} className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default" title="Move down">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
                         <button onClick={() => openEditCategory(cat)} className="text-slate-400 hover:text-emerald-600" title="Edit">
                           <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -277,10 +323,16 @@ export function CategoriesPage() {
           <div className="text-sm text-slate-400 text-center py-4">No sub-categories yet.</div>
         ) : (
           <div className="space-y-0.5">
-            {subCategories.map(sub => (
+            {subCategories.map((sub, idx) => (
               <div key={sub.id} className="flex justify-between items-center py-1.5 px-3 rounded-[7px] hover:bg-slate-50 group">
                 <span className="text-sm text-slate-800">{sub.name}</span>
                 <div className="flex gap-2 items-center">
+                  <button onClick={() => handleMoveSubCategory(sub.id, 'up')} disabled={idx === 0} className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default" title="Move up">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <button onClick={() => handleMoveSubCategory(sub.id, 'down')} disabled={idx === subCategories.length - 1} className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default" title="Move down">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
                   <button onClick={() => openEditSubCategory(sub)} className="text-slate-400 hover:text-emerald-600" title="Edit">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />

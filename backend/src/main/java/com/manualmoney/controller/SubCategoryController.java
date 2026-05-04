@@ -50,6 +50,12 @@ public class SubCategoryController {
         return ResponseEntity.notFound().build();
     }
 
+    @PutMapping("/reorder")
+    public ResponseEntity<Void> reorderSubCategories(@RequestBody List<UUID> ids) {
+        subCategoryService.reorderSubCategories(ids);
+        return ResponseEntity.noContent().build();
+    }
+
     public static class SubCategoryRequest {
         private String name;
 

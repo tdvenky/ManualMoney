@@ -44,4 +44,8 @@ public class SubCategoryService {
         }
         return false;
     }
+
+    public void reorderSubCategories(List<UUID> ids) {
+        repository.reorderSubCategories(ids);
+    }
 }

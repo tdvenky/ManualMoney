@@ -56,6 +56,10 @@ export const deleteCategory = async (id: string): Promise<void> => {
   await api.delete(`/categories/${id}`);
 };
 
+export const reorderCategories = async (ids: string[]): Promise<void> => {
+  await api.put('/categories/reorder', ids);
+};
+
 // SubCategory API
 export const getSubCategories = async (): Promise<SubCategory[]> => {
   const response = await api.get<SubCategory[]>('/subcategories');
@@ -74,6 +78,10 @@ export const updateSubCategory = async (id: string, data: UpdateSubCategoryReque
 
 export const deleteSubCategory = async (id: string): Promise<void> => {
   await api.delete(`/subcategories/${id}`);
+};
+
+export const reorderSubCategories = async (ids: string[]): Promise<void> => {
+  await api.put('/subcategories/reorder', ids);
 };
 
 // PayPeriod API

@@ -51,6 +51,12 @@ public class CategoryController {
         return ResponseEntity.notFound().build();
     }
 
+    @PutMapping("/reorder")
+    public ResponseEntity<Void> reorderCategories(@RequestBody List<UUID> ids) {
+        categoryService.reorderCategories(ids);
+        return ResponseEntity.noContent().build();
+    }
+
     public static class CategoryRequest {
         private String name;
         private CategoryType type;

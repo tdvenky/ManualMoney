@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -123,6 +124,16 @@ public class JsonDataRepository {
         saveData();
     }
 
+    public void reorderCategories(List<UUID> ids) {
+        List<Category> current = appData.getCategories();
+        List<Category> reordered = new ArrayList<>();
+        for (UUID id : ids) {
+            current.stream().filter(c -> c.getId().equals(id)).findFirst().ifPresent(reordered::add);
+        }
+        appData.setCategories(reordered);
+        saveData();
+    }
+
     // SubCategory operations
     public List<SubCategory> findAllSubCategories() {
         return appData.getSubCategories();
@@ -150,6 +161,16 @@ public class JsonDataRepository {
 
     public void deleteSubCategory(UUID id) {
         appData.getSubCategories().removeIf(s -> s.getId().equals(id));
+        saveData();
+    }
+
+    public void reorderSubCategories(List<UUID> ids) {
+        List<SubCategory> current = appData.getSubCategories();
+        List<SubCategory> reordered = new ArrayList<>();
+        for (UUID id : ids) {
+            current.stream().filter(s -> s.getId().equals(id)).findFirst().ifPresent(reordered::add);
+        }
+        appData.setSubCategories(reordered);
         saveData();
     }
 

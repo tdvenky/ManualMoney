@@ -61,4 +61,8 @@ public class CategoryService {
         }
         return false;
     }
+
+    public void reorderCategories(List<UUID> ids) {
+        repository.reorderCategories(ids);
+    }
 }
