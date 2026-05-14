@@ -1210,6 +1210,12 @@ export function PayPeriodDetailPage() {
       {overspendModalMode !== null && (
         <OverspendResolutionModal
           overspend={overspend}
+          overspentAllocations={payPeriod.allocations
+            .filter(a => getAllocType(a) === 'EXPENSE' && a.currentBalance < -0.005)
+            .map(a => ({
+              categoryName: categoryNameMap.get(a.categoryId) ?? '—',
+              overspentBy: Math.abs(a.currentBalance),
+            }))}
           savingsAllocations={payPeriod.allocations
             .filter(a => getAllocType(a) === 'SAVINGS')
             .map(a => ({

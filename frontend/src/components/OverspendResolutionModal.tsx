@@ -7,15 +7,21 @@ interface SavingsAllocationOption {
   remainingBalance: number;
 }
 
+interface OverspentAllocation {
+  categoryName: string;
+  overspentBy: number;
+}
+
 interface Props {
   overspend: number;
+  overspentAllocations: OverspentAllocation[];
   savingsAllocations: SavingsAllocationOption[];
   submitLabel?: string;
   onSubmit: (resolution: ClosePayPeriodRequest) => Promise<void>;
   onCancel: () => void;
 }
 
-export function OverspendResolutionModal({ overspend, savingsAllocations, submitLabel = 'Resolve & Close', onSubmit, onCancel }: Props) {
+export function OverspendResolutionModal({ overspend, overspentAllocations, savingsAllocations, submitLabel = 'Resolve & Close', onSubmit, onCancel }: Props) {
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
 
@@ -109,6 +115,28 @@ export function OverspendResolutionModal({ overspend, savingsAllocations, submit
             )}
           </div>
         </div>
+
+        {overspentAllocations.length > 0 && (
+          <div className="mb-5">
+            <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Overspend Breakdown</div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-[11px] text-slate-400 border-b border-[0.5px] border-slate-200">
+                  <th className="text-left pb-1 font-medium">Category</th>
+                  <th className="text-right pb-1 font-medium">Overspent by</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overspentAllocations.map((a, i) => (
+                  <tr key={i} className="border-b border-[0.5px] border-slate-100 last:border-0">
+                    <td className="py-1.5 text-slate-700">{a.categoryName}</td>
+                    <td className="py-1.5 text-right font-mono text-red-600">{fmt(a.overspentBy)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 bg-red-50 border-[0.5px] border-red-200 text-red-700 px-3 py-2 rounded-[7px] text-sm">
