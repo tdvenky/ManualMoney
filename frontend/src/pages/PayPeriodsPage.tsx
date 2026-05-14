@@ -47,6 +47,15 @@ export function PayPeriodsPage() {
   const getTotalOverspend = (pp: PayPeriod) =>
     pp.allocations.reduce((s, a) => s + Math.max(0, -a.currentBalance), 0);
 
+  const getTotalPlannedExpense = (pp: PayPeriod) =>
+    pp.allocations
+      .filter(a => getAllocType(a) === 'SAVINGS')
+      .reduce((s, a) =>
+        s + (a.savingsTransfers ?? [])
+          .filter(t => (t.type === 'TRANSFER' || t.type == null) && t.excludeFromSavings)
+          .reduce((ss, t) => ss + t.amount, 0)
+      , 0);
+
   const getTotalSavings = (pp: PayPeriod) =>
     pp.allocations
       .filter(a => getAllocType(a) === 'SAVINGS')
@@ -126,6 +135,7 @@ export function PayPeriodsPage() {
                 <th className="text-right px-4 py-2.5 font-medium">Spent</th>
                 <th className="text-right px-4 py-2.5 font-medium">Remaining</th>
                 <th className="text-right px-4 py-2.5 font-medium">Overspend</th>
+                <th className="text-right px-4 py-2.5 font-medium">Planned Exp.</th>
                 <th className="text-right px-4 py-2.5 font-medium">Savings</th>
                 <th className="px-4 py-2.5"></th>
               </tr>
@@ -134,6 +144,7 @@ export function PayPeriodsPage() {
               {sorted.map(pp => {
                 const remaining = getTotalRemaining(pp);
                 const overspend = getTotalOverspend(pp);
+                const plannedExpense = getTotalPlannedExpense(pp);
                 const savings = getTotalSavings(pp);
                 const savingsPct = pp.amount > 0 ? Math.round((savings / pp.amount) * 100) : 0;
                 return (
@@ -158,6 +169,9 @@ export function PayPeriodsPage() {
                     </td>
                     <td className={`px-4 py-3 text-right font-mono ${overspend > 0 ? 'text-red-600' : 'text-slate-400'}`}>
                       {overspend > 0 ? fmt(overspend) : '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-slate-600">
+                      {plannedExpense > 0 ? fmt(plannedExpense) : '—'}
                     </td>
                     <td className="px-4 py-3 text-right font-mono text-emerald-700">
                       {savings > 0 ? `${fmt(savings)} (${savingsPct}%)` : '—'}
