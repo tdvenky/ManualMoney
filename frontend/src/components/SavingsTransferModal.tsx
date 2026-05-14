@@ -4,18 +4,19 @@ import type { SavingsTransfer } from '../types';
 interface Props {
   payPeriod: { payDate: string; endDate: string };
   categoryName: string;
+  remainingBalance?: number;
   initialData?: SavingsTransfer;
   onSubmit: (data: { amount: number; date: string; notes?: string; excludeFromSavings: boolean }) => Promise<void>;
   onClose: () => void;
 }
 
-export function SavingsTransferModal({ payPeriod, categoryName, initialData, onSubmit, onClose }: Props) {
+export function SavingsTransferModal({ payPeriod, categoryName, remainingBalance, initialData, onSubmit, onClose }: Props) {
   const today = new Date().toISOString().split('T')[0];
   const isEdit = initialData != null;
 
-  const [amount, setAmount] = useState(initialData ? String(initialData.amount) : '');
+  const [amount, setAmount] = useState(initialData ? String(initialData.amount) : (remainingBalance != null ? remainingBalance.toFixed(2) : ''));
   const [date, setDate] = useState(initialData?.date ?? today);
-  const [notes, setNotes] = useState(initialData?.notes ?? '');
+  const [notes, setNotes] = useState(initialData?.notes ?? (isEdit ? '' : 'Transferred to Marcus HYSA'));
   const [excludeFromSavings, setExcludeFromSavings] = useState(initialData?.excludeFromSavings ?? false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -1172,6 +1172,7 @@ export function PayPeriodDetailPage() {
         <SavingsTransferModal
           payPeriod={{ payDate: payPeriod.payDate, endDate: payPeriod.endDate }}
           categoryName={categoryNameMap.get(savingsTransferAllocation.categoryId) ?? ''}
+          remainingBalance={Math.max(0, savingsTransferAllocation.currentBalance)}
           onSubmit={handleAddSavingsTransfer}
           onClose={() => setSavingsTransferAllocationId(null)}
         />
