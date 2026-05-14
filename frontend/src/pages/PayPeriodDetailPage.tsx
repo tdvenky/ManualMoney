@@ -285,8 +285,8 @@ export function PayPeriodDetailPage() {
     if (payPeriod) {
       const current = payPeriod.allocations.find(a => a.id === allocationId);
       const totalAllocated = payPeriod.allocations.reduce((s, a) => s + a.allocatedAmount, 0);
-      const unallocated = payPeriod.amount - totalAllocated;
-      const increase = parseFloat(editingAmount) - (current?.allocatedAmount ?? 0);
+      const unallocated = Math.round((payPeriod.amount - totalAllocated) * 100) / 100;
+      const increase = Math.round((parseFloat(editingAmount) - (current?.allocatedAmount ?? 0)) * 100) / 100;
       if (increase > 0 && increase > unallocated) {
         setError(`Only ${fmt(unallocated)} is available to allocate.`);
         return;
@@ -306,7 +306,7 @@ export function PayPeriodDetailPage() {
     if (!addingCategoryId || !addingAmount) return;
     if (payPeriod) {
       const totalAllocated = payPeriod.allocations.reduce((s, a) => s + a.allocatedAmount, 0);
-      const unallocated = payPeriod.amount - totalAllocated;
+      const unallocated = Math.round((payPeriod.amount - totalAllocated) * 100) / 100;
       if (parseFloat(addingAmount) > unallocated) {
         setError(`Only ${fmt(unallocated)} is available to allocate.`);
         return;
