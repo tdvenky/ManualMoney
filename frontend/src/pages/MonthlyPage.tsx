@@ -21,6 +21,8 @@ interface MonthRow {
 }
 
 export function MonthlyPage() {
+  const currentYear = new Date().getFullYear();
+
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,8 +91,9 @@ export function MonthlyPage() {
         plannedExpense: Math.round(plannedExpense * 100) / 100,
         overspend: Math.round(overspend * 100) / 100,
       }))
+      .filter(row => row.month.startsWith(`${currentYear}-`))
       .sort((a, b) => b.month.localeCompare(a.month));
-  }, [payPeriods, categoryMap]);
+  }, [payPeriods, categoryMap, currentYear]);
 
   if (loading) {
     return <div className="text-sm text-slate-400 py-12 text-center">Loading...</div>;
@@ -102,7 +105,10 @@ export function MonthlyPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold text-slate-800">Monthly Summary</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-xl font-bold text-slate-800">Monthly Summary</h1>
+        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-200 text-slate-600">{currentYear} YTD</span>
+      </div>
 
       {rows.length === 0 ? (
         <div className="bg-white rounded-[10px] border-[0.5px] border-slate-200 p-10 text-center text-sm text-slate-400">
@@ -123,7 +129,7 @@ export function MonthlyPage() {
             </thead>
             <tbody>
               {rows.map(row => (
-                <tr key={row.month} className="border-b border-[0.5px] border-slate-100 last:border-0 hover:bg-slate-50">
+                <tr key={row.month} className="border-b border-[0.5px] border-slate-100 hover:bg-slate-50">
                   <td className="px-5 py-3 font-medium text-slate-700">{formatMonthLabel(row.month)}</td>
                   <td className="px-5 py-3 text-right font-mono text-slate-800">{fmt(row.income)}</td>
                   <td className="px-5 py-3 text-right font-mono text-slate-800">{fmt(row.spent)}</td>
@@ -139,6 +145,26 @@ export function MonthlyPage() {
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr className="border-t border-[0.5px] border-slate-200 bg-slate-50">
+                <td className="px-5 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Total</td>
+                <td className="px-5 py-3 text-right font-mono font-semibold text-slate-800">
+                  {fmt(rows.reduce((s, r) => s + r.income, 0))}
+                </td>
+                <td className="px-5 py-3 text-right font-mono font-semibold text-slate-800">
+                  {fmt(rows.reduce((s, r) => s + r.spent, 0))}
+                </td>
+                <td className="px-5 py-3 text-right font-mono font-semibold text-red-600">
+                  {fmt(rows.reduce((s, r) => s + r.overspend, 0))}
+                </td>
+                <td className="px-5 py-3 text-right font-mono font-semibold text-slate-600">
+                  {fmt(rows.reduce((s, r) => s + r.plannedExpense, 0))}
+                </td>
+                <td className="px-5 py-3 text-right font-mono font-semibold text-emerald-700">
+                  {fmt(rows.reduce((s, r) => s + r.saved, 0))}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
