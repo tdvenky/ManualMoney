@@ -486,7 +486,7 @@ export function PayPeriodDetailPage() {
                         </div>
                       ) : (
                         <div className="flex gap-3 justify-end items-center">
-                          {type === 'SAVINGS' && (
+                          {type === 'SAVINGS' && a.currentBalance > 0.005 && (
                             <button
                               onClick={() => setSavingsTransferAllocationId(a.id)}
                               className="text-[11px] font-medium px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-[0.5px] border-emerald-200 whitespace-nowrap"
