@@ -163,40 +163,21 @@ export function PayPeriodsPage() {
                   </div>
                 </div>
 
-                {/* Stats row */}
-                <div className="flex gap-8">
-                  <div>
-                    <div className="text-[11px] text-slate-400 mb-0.5">Income</div>
-                    <div className="font-mono text-sm text-slate-800">{fmt(pp.amount)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[11px] text-slate-400 mb-0.5">Spent</div>
-                    <div className="font-mono text-sm text-slate-800">{fmt(getTotalSpent(pp))}</div>
-                  </div>
-                  {overspend > 0 && (
-                    <div>
-                      <div className="text-[11px] text-slate-400 mb-0.5">Overspend</div>
-                      <div className="font-mono text-sm text-red-600">{fmt(overspend)}</div>
+                {/* Stats */}
+                <div className="space-y-1.5 sm:space-y-0 sm:flex sm:gap-8">
+                  {[
+                    { label: 'Income',      value: fmt(pp.amount),           cls: 'text-slate-800',  show: true },
+                    { label: 'Spent',       value: fmt(getTotalSpent(pp)),   cls: 'text-slate-800',  show: true },
+                    { label: 'Overspend',   value: fmt(overspend),           cls: 'text-red-600',    show: overspend > 0 },
+                    { label: 'Planned Exp.',value: fmt(plannedExpense),      cls: 'text-slate-600',  show: plannedExpense > 0 },
+                    { label: 'Savings',     value: savings > 0 ? `${fmt(savings)} (${savingsPct}%)` : '—', cls: 'text-emerald-700', show: true },
+                    { label: 'Remaining',   value: fmt(Math.max(0, remaining)), cls: 'text-slate-500', show: pp.status === 'ACTIVE' },
+                  ].filter(s => s.show).map(({ label, value, cls }) => (
+                    <div key={label} className="flex justify-between items-center sm:block">
+                      <div className="text-[11px] text-slate-400 sm:mb-0.5">{label}</div>
+                      <div className={`font-mono text-sm ${cls}`}>{value}</div>
                     </div>
-                  )}
-                  {plannedExpense > 0 && (
-                    <div>
-                      <div className="text-[11px] text-slate-400 mb-0.5">Planned Exp.</div>
-                      <div className="font-mono text-sm text-slate-600">{fmt(plannedExpense)}</div>
-                    </div>
-                  )}
-                  <div>
-                    <div className="text-[11px] text-slate-400 mb-0.5">Savings</div>
-                    <div className="font-mono text-sm text-emerald-700">
-                      {savings > 0 ? `${fmt(savings)} (${savingsPct}%)` : '—'}
-                    </div>
-                  </div>
-                  {pp.status === 'ACTIVE' && (
-                    <div>
-                      <div className="text-[11px] text-slate-400 mb-0.5">Remaining</div>
-                      <div className="font-mono text-sm text-slate-500">{fmt(Math.max(0, remaining))}</div>
-                    </div>
-                  )}
+                  ))}
                 </div>
 
               </div>
