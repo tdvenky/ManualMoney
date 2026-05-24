@@ -147,14 +147,14 @@ export function Dashboard() {
                   </div>
                   <Link
                     to={`/payperiods/${pp.id}`}
-                    className="px-3 py-1.5 text-sm bg-slate-700 rounded-[7px] hover:bg-slate-600 text-white"
+                    className="px-3 py-1.5 text-sm bg-slate-700 rounded-[7px] hover:bg-slate-600 text-white whitespace-nowrap"
                   >
                     View Details
                   </Link>
                 </div>
 
                 {/* Stat cards */}
-                <div className="grid grid-cols-4 gap-[10px]">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-[10px]">
                   {[
                     { label: 'Income', value: fmt(pp.amount), valueClass: 'text-slate-800', cardClass: 'bg-white border-[0.5px] border-slate-200' },
                     { label: 'Allocated', value: fmt(totalAllocated), valueClass: 'text-blue-700', cardClass: 'bg-white border-[0.5px] border-slate-200' },
