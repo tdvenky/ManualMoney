@@ -424,7 +424,8 @@ export function PayPeriodDetailPage() {
     return (
       <div className="mb-4">
         <div className="text-[11px] font-bold text-slate-500 tracking-wider mb-1">{type === 'EXPENSE' ? 'EXPENSES' : 'SAVINGS'}</div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full text-sm min-w-[480px]">
           <thead>
             <tr className="border-b border-[0.5px] border-slate-200 text-slate-500 text-xs">
               <th className="text-left py-1 font-medium">Category</th>
@@ -547,6 +548,7 @@ export function PayPeriodDetailPage() {
             </tr>
           </tfoot>
         </table>
+        </div>
 
         {/* Savings transfer history inline under the SAVINGS table */}
         {type === 'SAVINGS' && allSavingsTransfers.length > 0 && (
@@ -642,38 +644,36 @@ export function PayPeriodDetailPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold text-slate-800">
-              {fmtDateShort(payPeriod.payDate)} – {fmtDate(payPeriod.endDate)}
-            </h1>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-              isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-            }`}>
-              {payPeriod.status}
-            </span>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-slate-800">
+            {fmtDateShort(payPeriod.payDate)} – {fmtDate(payPeriod.endDate)}
+          </h1>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded shrink-0 ${
+            isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+          }`}>
+            {payPeriod.status}
+          </span>
         </div>
         {isActive ? (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {overspend > 0.005 ? (
               <button
                 onClick={() => setOverspendModalMode('resolve')}
-                className="px-4 py-2 bg-red-600 text-white text-sm rounded-[7px] hover:bg-red-700"
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-[7px] hover:bg-red-700 whitespace-nowrap"
               >
                 Resolve Overspend
               </button>
             ) : null}
             <button
               onClick={() => setShowAddTransaction(true)}
-              className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-[7px] hover:bg-emerald-700"
+              className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-[7px] hover:bg-emerald-700 whitespace-nowrap"
             >
               Add Transaction
             </button>
             <button
               onClick={handleClosePayPeriod}
-              className="px-4 py-2 bg-slate-700 text-white text-sm rounded-[7px] hover:bg-slate-600"
+              className="px-4 py-2 bg-slate-700 text-white text-sm rounded-[7px] hover:bg-slate-600 whitespace-nowrap"
             >
               Close Pay Period
             </button>
@@ -681,7 +681,7 @@ export function PayPeriodDetailPage() {
         ) : (
           <button
             onClick={handleReopenPayPeriod}
-            className="px-4 py-2 bg-slate-700 text-white text-sm rounded-[7px] hover:bg-slate-600"
+            className="px-4 py-2 bg-slate-700 text-white text-sm rounded-[7px] hover:bg-slate-600 whitespace-nowrap"
           >
             Reopen Pay Period
           </button>
@@ -712,7 +712,7 @@ export function PayPeriodDetailPage() {
       })()}
 
       {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-[10px]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-[10px]">
         {[
           { label: 'Income', value: fmt(payPeriod.amount), valueClass: 'text-slate-800', cardClass: 'bg-white border-[0.5px] border-slate-200' },
           { label: 'Allocated', value: fmt(totalAllocated), valueClass: 'text-blue-700', cardClass: 'bg-white border-[0.5px] border-slate-200' },
@@ -741,8 +741,8 @@ export function PayPeriodDetailPage() {
         </div>
 
         {isActive && showAddIncome && (
-          <form onSubmit={handleAddIncome} className="mb-4 flex gap-2 items-end">
-            <div className="flex-1">
+          <form onSubmit={handleAddIncome} className="mb-4 grid grid-cols-1 sm:flex sm:gap-2 sm:items-end gap-2">
+            <div className="sm:flex-1">
               <label className="block text-[11px] text-slate-500 mb-1">Description</label>
               <input
                 type="text"
@@ -753,7 +753,7 @@ export function PayPeriodDetailPage() {
                 required
               />
             </div>
-            <div className="w-32">
+            <div className="sm:w-32">
               <label className="block text-[11px] text-slate-500 mb-1">Amount</label>
               <input
                 type="number"
@@ -765,7 +765,7 @@ export function PayPeriodDetailPage() {
                 required
               />
             </div>
-            <div className="w-36">
+            <div className="sm:w-36">
               <label className="block text-[11px] text-slate-500 mb-1">Date</label>
               <input
                 type="date"
@@ -878,7 +878,7 @@ export function PayPeriodDetailPage() {
       {/* Summary */}
       <div className="bg-white border-[0.5px] border-slate-200 rounded-[10px] p-5">
         <h2 className="text-[11px] font-bold text-slate-500 tracking-wider mb-4">SUMMARY</h2>
-        <div className={`grid gap-6 ${savingsSummary.length > 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <div className={`grid gap-6 grid-cols-1 ${savingsSummary.length > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
           {/* By Category */}
           <div className="bg-slate-50 rounded-[8px] border-[0.5px] border-slate-200 p-4">
             <div className="text-xs font-medium text-slate-500 mb-2">By Category</div>
@@ -989,8 +989,8 @@ export function PayPeriodDetailPage() {
         </div>
 
         {isActive && showAddAllocation && availableCategories.length > 0 && (
-          <form onSubmit={handleAddAllocation} className="mb-4 flex gap-2 items-end">
-            <div className="flex-1">
+          <form onSubmit={handleAddAllocation} className="mb-4 grid grid-cols-1 sm:flex sm:gap-2 sm:items-end gap-2">
+            <div className="sm:flex-1">
               <label className="block text-[11px] text-slate-500 mb-1">Add Category</label>
               <select
                 value={addingCategoryId}
@@ -1004,7 +1004,7 @@ export function PayPeriodDetailPage() {
                 ))}
               </select>
             </div>
-            <div className="w-32">
+            <div className="sm:w-32">
               <label className="block text-[11px] text-slate-500 mb-1">Amount</label>
               <input
                 type="number"
@@ -1050,7 +1050,7 @@ export function PayPeriodDetailPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex flex-wrap gap-2 mb-4">
           <select
             value={filterCategoryId}
             onChange={e => setFilterCategoryId(e.target.value)}
