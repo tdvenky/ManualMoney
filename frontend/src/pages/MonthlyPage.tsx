@@ -115,7 +115,49 @@ export function MonthlyPage() {
           No data yet.
         </div>
       ) : (
-        <div className="bg-white rounded-[10px] border-[0.5px] border-slate-200">
+        <>
+          {/* Mobile cards */}
+          <div className="sm:hidden space-y-3">
+            {rows.map(row => (
+              <div key={row.month} className="bg-white rounded-[10px] border-[0.5px] border-slate-200 px-4 py-3">
+                <div className="font-semibold text-slate-800 mb-2">{formatMonthLabel(row.month)}</div>
+                <div className="space-y-1.5">
+                  {[
+                    { label: 'Income',       value: fmt(row.income),       cls: 'text-slate-800' },
+                    { label: 'Spent',        value: fmt(row.spent),        cls: 'text-slate-800' },
+                    ...(row.overspend > 0      ? [{ label: 'Overspend',    value: fmt(row.overspend),      cls: 'text-red-600'     }] : []),
+                    ...(row.plannedExpense > 0 ? [{ label: 'Planned Exp.', value: fmt(row.plannedExpense), cls: 'text-slate-600'   }] : []),
+                    { label: 'Saved',        value: fmt(row.saved),        cls: 'text-emerald-700' },
+                  ].map(({ label, value, cls }) => (
+                    <div key={label} className="flex justify-between items-center">
+                      <span className="text-[11px] text-slate-400">{label}</span>
+                      <span className={`font-mono text-sm ${cls}`}>{value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="bg-slate-50 rounded-[10px] border-[0.5px] border-slate-200 px-4 py-3">
+              <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">YTD Total</div>
+              <div className="space-y-1.5">
+                {[
+                  { label: 'Income',       value: fmt(rows.reduce((s, r) => s + r.income, 0)),         cls: 'text-slate-800 font-semibold'   },
+                  { label: 'Spent',        value: fmt(rows.reduce((s, r) => s + r.spent, 0)),          cls: 'text-slate-800 font-semibold'   },
+                  { label: 'Overspend',    value: fmt(rows.reduce((s, r) => s + r.overspend, 0)),      cls: 'text-red-600 font-semibold'     },
+                  { label: 'Planned Exp.', value: fmt(rows.reduce((s, r) => s + r.plannedExpense, 0)), cls: 'text-slate-600 font-semibold'   },
+                  { label: 'Saved',        value: fmt(rows.reduce((s, r) => s + r.saved, 0)),          cls: 'text-emerald-700 font-semibold' },
+                ].map(({ label, value, cls }) => (
+                  <div key={label} className="flex justify-between items-center">
+                    <span className="text-[11px] text-slate-400">{label}</span>
+                    <span className={`font-mono text-sm ${cls}`}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-white rounded-[10px] border-[0.5px] border-slate-200">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-[11px] text-slate-400 border-b border-[0.5px] border-slate-200">
@@ -166,7 +208,8 @@ export function MonthlyPage() {
               </tr>
             </tfoot>
           </table>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );
