@@ -465,7 +465,7 @@ export function PayPeriodDetailPage() {
                   {type === 'SAVINGS' && (
                     <td className="py-2.5 text-right font-mono text-emerald-600">{fmt(savedAmount)}</td>
                   )}
-                  <td className="py-2.5 text-right font-mono text-slate-800">{fmt(spent)}</td>
+                  <td className={`py-2.5 text-right font-mono ${type === 'SAVINGS' && spent > 0 ? 'text-red-600' : 'text-slate-800'}`}>{fmt(spent)}</td>
                   <td className="py-2.5 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded leading-none ${
@@ -538,7 +538,7 @@ export function PayPeriodDetailPage() {
                 <td className="py-2 px-1 text-right font-mono font-semibold text-emerald-600">{fmt(totalSaved)}</td>
               )}
               <td className="py-2 px-1 text-right font-mono font-semibold">
-                <div className="text-slate-800">{fmt(totalSpentForType)}</div>
+                <div className={type === 'SAVINGS' && totalSpentForType > 0 ? 'text-red-600' : 'text-slate-800'}>{fmt(totalSpentForType)}</div>
                 {totalOverspent > 0 && (
                   <div className="text-[11px] text-red-500 font-normal">−{fmt(totalOverspent)} overspent</div>
                 )}
