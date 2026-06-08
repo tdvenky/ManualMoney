@@ -99,10 +99,37 @@ export interface ClosePayPeriodRequest {
   carryForwardAmount?: number;
 }
 
+export interface TemplateAllocation {
+  categoryId: string;
+  allocatedAmount: number;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  income: number;
+  allocations: TemplateAllocation[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTemplateRequest {
+  name: string;
+  income: number;
+  allocations: TemplateAllocation[];
+}
+
+export interface UpdateTemplateRequest {
+  name: string;
+  income: number;
+  allocations: TemplateAllocation[];
+}
+
 export interface AppData {
   categories: Category[];
   subCategories: SubCategory[];
   payPeriods: PayPeriod[];
+  templates?: Template[];
 }
 
 export interface CreateCategoryRequest {

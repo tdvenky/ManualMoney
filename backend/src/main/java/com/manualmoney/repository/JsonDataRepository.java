@@ -270,6 +270,37 @@ public class JsonDataRepository {
                 .findFirst();
     }
 
+    // Template operations
+    public List<Template> findAllTemplates() {
+        return appData.getTemplates();
+    }
+
+    public Optional<Template> findTemplateById(UUID id) {
+        return appData.getTemplates().stream()
+                .filter(t -> t.getId().equals(id))
+                .findFirst();
+    }
+
+    public Template saveTemplate(Template template) {
+        Optional<Template> existing = findTemplateById(template.getId());
+        if (existing.isPresent()) {
+            Template t = existing.get();
+            t.setName(template.getName());
+            t.setIncome(template.getIncome());
+            t.setAllocations(template.getAllocations());
+            t.setUpdatedAt(LocalDateTime.now());
+        } else {
+            appData.getTemplates().add(template);
+        }
+        saveData();
+        return template;
+    }
+
+    public void deleteTemplate(UUID id) {
+        appData.getTemplates().removeIf(t -> t.getId().equals(id));
+        saveData();
+    }
+
     // Export/Import
     public AppData exportData() {
         return appData;

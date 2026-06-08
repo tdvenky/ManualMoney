@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import type { PayPeriod, Category, Allocation } from '../types';
+import type { PayPeriod, Category, Allocation, Template } from '../types';
 import { PayPeriodForm } from '../components';
 import * as api from '../api/client';
 
@@ -12,12 +12,16 @@ export function PayPeriodsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showNewModal, setShowNewModal] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [useTemplate, setUseTemplate] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
 
   useEffect(() => {
-    Promise.all([api.getPayPeriods(), api.getCategories()])
-      .then(([periods, cats]) => {
+    Promise.all([api.getPayPeriods(), api.getCategories(), api.getTemplates()])
+      .then(([periods, cats, tmpl]) => {
         setPayPeriods(periods);
         setCategories(cats);
+        setTemplates(tmpl);
       })
       .catch(() => setError('Failed to load pay periods'))
       .finally(() => setLoading(false));
@@ -69,9 +73,31 @@ export function PayPeriodsPage() {
         return s + transferred - withdrawn;
       }, 0);
 
+  const selectedTemplate = templates.find(t => t.id === selectedTemplateId);
+
+  const openNewModal = () => {
+    setCreateError(null);
+    setUseTemplate(false);
+    setSelectedTemplateId('');
+    setShowNewModal(true);
+  };
+
   const handleCreate = async (payDate: string, endDate: string) => {
     try {
       const newPayPeriod = await api.createPayPeriod({ payDate, endDate });
+      if (useTemplate && selectedTemplate) {
+        await api.addIncome(newPayPeriod.id, {
+          description: 'Salary',
+          amount: selectedTemplate.income,
+          date: payDate,
+        });
+        for (const alloc of selectedTemplate.allocations) {
+          await api.addAllocation(newPayPeriod.id, {
+            categoryId: alloc.categoryId,
+            allocatedAmount: alloc.allocatedAmount,
+          });
+        }
+      }
       setShowNewModal(false);
       navigate(`/payperiods/${newPayPeriod.id}`);
     } catch {
@@ -113,7 +139,7 @@ export function PayPeriodsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-lg font-bold text-slate-800">Pay Periods</h1>
         <button
-          onClick={() => { setCreateError(null); setShowNewModal(true); }}
+          onClick={openNewModal}
           className="px-4 py-2 bg-emerald-600 text-white text-sm hover:bg-emerald-700 rounded-[7px]"
         >
           New Pay Period
@@ -196,6 +222,50 @@ export function PayPeriodsPage() {
                 {createError}
               </div>
             )}
+            <div>
+              <div className="text-[11px] font-medium text-slate-500 mb-2">Start from</div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setUseTemplate(false); setSelectedTemplateId(''); }}
+                  className={`px-3 py-1.5 text-sm rounded-[7px] border-[0.5px] transition-colors ${!useTemplate ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}
+                >
+                  Blank
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUseTemplate(true)}
+                  className={`px-3 py-1.5 text-sm rounded-[7px] border-[0.5px] transition-colors ${useTemplate ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'}`}
+                >
+                  Template
+                </button>
+              </div>
+              {useTemplate && (
+                <div className="mt-3">
+                  {templates.length === 0 ? (
+                    <p className="text-xs text-slate-500">No templates yet. Create one on the <Link to="/templates" className="text-emerald-600 hover:text-emerald-700 underline" onClick={() => setShowNewModal(false)}>Templates page</Link>.</p>
+                  ) : (
+                    <>
+                      <select
+                        value={selectedTemplateId}
+                        onChange={e => setSelectedTemplateId(e.target.value)}
+                        className="w-full border-[0.5px] border-slate-300 rounded-[7px] px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500"
+                      >
+                        <option value="">Choose a template…</option>
+                        {templates.map(t => (
+                          <option key={t.id} value={t.id}>{t.name} — {fmt(t.income)}</option>
+                        ))}
+                      </select>
+                      {selectedTemplate && (
+                        <div className="mt-1.5 text-xs text-slate-500">
+                          {selectedTemplate.allocations.length} allocation{selectedTemplate.allocations.length !== 1 ? 's' : ''} will be pre-filled
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
             <PayPeriodForm
               onSubmit={handleCreate}
               submitLabel="Create Pay Period"

@@ -7,6 +7,7 @@ import {
   NewPayPeriodPage,
   DataPage,
   MonthlyPage,
+  TemplatesPage,
 } from './pages';
 
 const navItems = [
@@ -14,6 +15,7 @@ const navItems = [
   { to: '/payperiods', label: 'Pay Periods', end: true },
   { to: '/monthly', label: 'Monthly', end: false },
   { to: '/categories', label: 'Categories', end: false },
+  { to: '/templates', label: 'Templates', end: false },
   { to: '/data', label: 'Data', end: false },
 ];
 
@@ -61,6 +63,7 @@ function App() {
           <Route path="/payperiods/new" element={<NewPayPeriodPage />} />
           <Route path="/payperiods/:id" element={<PayPeriodDetailPage />} />
           <Route path="/monthly" element={<MonthlyPage />} />
+          <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/data" element={<DataPage />} />
         </Routes>
       </main>

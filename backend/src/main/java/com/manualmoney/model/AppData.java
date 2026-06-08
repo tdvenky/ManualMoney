@@ -12,11 +12,13 @@ public class AppData {
 
     private List<SubCategory> subCategories;
     private List<PayPeriod> payPeriods;
+    private List<Template> templates;
 
     public AppData() {
         this.categories = new ArrayList<>();
         this.subCategories = new ArrayList<>();
         this.payPeriods = new ArrayList<>();
+        this.templates = new ArrayList<>();
     }
 
     public List<Category> getCategories() { return categories; }
@@ -27,4 +29,7 @@ public class AppData {
 
     public List<PayPeriod> getPayPeriods() { return payPeriods; }
     public void setPayPeriods(List<PayPeriod> payPeriods) { this.payPeriods = payPeriods; }
+
+    public List<Template> getTemplates() { return templates; }
+    public void setTemplates(List<Template> templates) { this.templates = templates; }
 }
