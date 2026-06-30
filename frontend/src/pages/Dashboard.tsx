@@ -107,12 +107,6 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {activePayPeriods.length > 1 && (
-        <div className="bg-amber-50 border-[0.5px] border-amber-300 text-amber-800 px-4 py-2 rounded-[10px] text-sm">
-          Warning: {activePayPeriods.length} active pay periods detected. Consider closing all but one.
-        </div>
-      )}
-
       {payPeriods.length === 0 ? (
         <div className="bg-white border-[0.5px] border-slate-200 rounded-[10px] p-8 text-center text-slate-500">
           <p className="mb-4">No pay periods yet.</p>
