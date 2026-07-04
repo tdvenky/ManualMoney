@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NetWorthPage } from '../../src/pages/NetWorthPage';
 import type { NetWorthCategoryMeta, NetWorthSnapshot } from '../../src/types';
@@ -94,6 +94,34 @@ describe('NetWorthPage', () => {
     });
   });
 
+  it('shows category breakdown with sub-item names when View is clicked', async () => {
+    const snapshotWithSplit: NetWorthSnapshot = {
+      ...mockSnapshotJan,
+      entries: [
+        { category: 'CHECKING', subItems: [{ amount: 5000 }] },
+        { category: 'SAVINGS', subItems: [{ name: 'Chase Savings', amount: 6000 }, { name: 'Ally Savings', amount: 4000 }] },
+        { category: 'CREDIT_CARD', subItems: [{ amount: 500 }] },
+      ],
+    };
+    vi.mocked(api.getNetWorthCategories).mockResolvedValue(mockCategories);
+    vi.mocked(api.getNetWorthSnapshots).mockResolvedValue([snapshotWithSplit]);
+
+    render(<NetWorthPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('View')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('View'));
+
+    expect(screen.getByText('Chase Savings')).toBeInTheDocument();
+    expect(screen.getByText('Ally Savings')).toBeInTheDocument();
+    expect(screen.getByText('Hide')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Hide'));
+
+    expect(screen.queryByText('Chase Savings')).not.toBeInTheDocument();
+  });
+
   it('shows error message on API failure', async () => {
     vi.mocked(api.getNetWorthCategories).mockRejectedValue(new Error('Network error'));
     vi.mocked(api.getNetWorthSnapshots).mockRejectedValue(new Error('Network error'));
@@ -151,16 +179,15 @@ describe('NetWorthPage', () => {
     fireEvent.click(screen.getByText('New Snapshot'));
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2024-01-28' } });
+    fireEvent.change(screen.getByLabelText('Savings name'), { target: { value: 'Chase Savings' } });
     fireEvent.change(screen.getByLabelText('Savings'), { target: { value: '5000' } });
 
     // Split Savings into a second named sub-item
-    const savingsAddButtons = screen.getAllByText('+ Add');
-    fireEvent.click(savingsAddButtons[1]); // 0=Checking, 1=Savings, 2=CreditCard
+    const savingsHeaderRow = screen.getByText('Savings').closest('div')!;
+    fireEvent.click(within(savingsHeaderRow).getByText('Add'));
 
-    const nameInputs = screen.getAllByPlaceholderText('e.g. Chase Savings');
-    fireEvent.change(nameInputs[0], { target: { value: 'Chase Savings' } });
+    fireEvent.change(screen.getByLabelText('Savings name 2'), { target: { value: 'Ally Savings' } });
     fireEvent.change(screen.getByLabelText('Savings 2'), { target: { value: '3000' } });
-    fireEvent.change(screen.getAllByPlaceholderText('e.g. Chase Savings')[1], { target: { value: 'Ally Savings' } });
 
     fireEvent.click(screen.getByText('Save Snapshot'));
 
@@ -197,9 +224,10 @@ describe('NetWorthPage', () => {
     fireEvent.click(screen.getByText('New Snapshot'));
 
     fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2024-01-28' } });
-    fireEvent.click(screen.getByText('+ Add Custom Asset'));
-    fireEvent.change(screen.getByPlaceholderText('Category name'), { target: { value: 'Gold' } });
-    fireEvent.click(screen.getByText('Add'));
+    fireEvent.click(screen.getByText('Add Custom Asset'));
+    const categoryNameInput = screen.getByPlaceholderText('Category name');
+    fireEvent.change(categoryNameInput, { target: { value: 'Gold' } });
+    fireEvent.click(within(categoryNameInput.parentElement!).getByText('Add'));
 
     await waitFor(() => {
       expect(api.createNetWorthCategory).toHaveBeenCalledWith({ name: 'Gold', type: 'ASSET' });

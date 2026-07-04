@@ -5,16 +5,15 @@ public enum NetWorthCategory {
     CHECKING(NetWorthCategoryType.ASSET, "Checking"),
     SAVINGS(NetWorthCategoryType.ASSET, "Savings"),
     RETIREMENT(NetWorthCategoryType.ASSET, "Retirement"),
+    INVESTMENTS(NetWorthCategoryType.ASSET, "Investments"),
     HSA(NetWorthCategoryType.ASSET, "HSA"),
     CARS(NetWorthCategoryType.ASSET, "Cars"),
-    OTHER_ASSETS(NetWorthCategoryType.ASSET, "Other Assets"),
 
     REAL_ESTATE_LOAN(NetWorthCategoryType.LIABILITY, "Real Estate Loan"),
     CREDIT_CARD(NetWorthCategoryType.LIABILITY, "Credit Card"),
     PERSONAL_LOAN(NetWorthCategoryType.LIABILITY, "Personal Loan"),
     STUDENT_LOAN(NetWorthCategoryType.LIABILITY, "Student Loan"),
-    CAR_LOAN(NetWorthCategoryType.LIABILITY, "Car Loan"),
-    OTHER_DEBT(NetWorthCategoryType.LIABILITY, "Other Debt");
+    CAR_LOAN(NetWorthCategoryType.LIABILITY, "Car Loan");
 
     private final NetWorthCategoryType type;
     private final String label;

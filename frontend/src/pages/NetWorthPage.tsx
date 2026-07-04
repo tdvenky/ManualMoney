@@ -1,5 +1,5 @@
-import { useMemo, useState, useEffect } from 'react';
-import type { NetWorthCategoryKey, NetWorthCategoryMeta, NetWorthCategoryType, NetWorthSnapshot } from '../types';
+import { Fragment, useMemo, useState, useEffect } from 'react';
+import type { NetWorthCategoryKey, NetWorthCategoryMeta, NetWorthCategoryType, NetWorthEntry, NetWorthSnapshot } from '../types';
 import * as api from '../api/client';
 
 interface SubItemRow {
@@ -45,6 +45,8 @@ export function NetWorthPage() {
 
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [formDate, setFormDate] = useState('');
   const [formEntries, setFormEntries] = useState<FormEntries>({});
   const [formNotes, setFormNotes] = useState('');
@@ -109,6 +111,11 @@ export function NetWorthPage() {
     loadFormFrom(s);
     setEditingId(s.id);
     setShowCreate(false);
+    setViewingId(null);
+  };
+
+  const handleToggleView = (id: string) => {
+    setViewingId(prev => prev === id ? null : id);
   };
 
   const handleCancel = () => {
@@ -124,6 +131,7 @@ export function NetWorthPage() {
     try {
       await api.deleteNetWorthSnapshot(id);
       setSnapshots(prev => prev.filter(s => s.id !== id));
+      setViewingId(prev => prev === id ? null : prev);
     } catch {
       setError('Failed to delete snapshot');
     }
@@ -144,6 +152,8 @@ export function NetWorthPage() {
 
   const handleSaveCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     try {
       const created = await api.createNetWorthSnapshot(buildPayload());
       setSnapshots(prev => [...prev, created]);
@@ -151,12 +161,15 @@ export function NetWorthPage() {
       resetForm();
     } catch {
       setError('Failed to create snapshot');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingId) return;
+    if (saving || !editingId) return;
+    setSaving(true);
     try {
       const updated = await api.updateNetWorthSnapshot(editingId, buildPayload());
       setSnapshots(prev => prev.map(s => s.id === editingId ? updated : s));
@@ -164,6 +177,8 @@ export function NetWorthPage() {
       resetForm();
     } catch {
       setError('Failed to update snapshot');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -223,7 +238,7 @@ export function NetWorthPage() {
 
   const renderCategoryBlock = (c: NetWorthCategoryMeta) => {
     const rows = formEntries[c.key] ?? [newRow()];
-    const showNames = rows.length > 1;
+    const hasMultiple = rows.length > 1;
     const total = categoryTotal(c.key);
 
     return (
@@ -231,9 +246,13 @@ export function NetWorthPage() {
         <div className="flex items-center justify-between mb-1">
           <span className="text-sm text-slate-600">{c.label}</span>
           <div className="flex items-center gap-2">
-            {showNames && <span className="text-xs font-mono text-slate-400">{fmt(total)}</span>}
-            <button type="button" onClick={() => addSubItem(c.key)} className="text-[11px] text-emerald-600 hover:text-emerald-700">
-              + Add
+            <span className="text-xs font-mono text-slate-400">{fmt(total)}</span>
+            <button
+              type="button"
+              onClick={() => addSubItem(c.key)}
+              className="px-2 py-0.5 bg-emerald-600 text-white text-[11px] rounded-[6px] hover:bg-emerald-700"
+            >
+              Add
             </button>
             {c.custom && (
               <button type="button" onClick={() => handleRemoveCategory(c.key)} className="text-[11px] text-slate-400 hover:text-red-500">
@@ -245,17 +264,14 @@ export function NetWorthPage() {
         <div className="space-y-1">
           {rows.map((row, idx) => (
             <div key={row.id} className="flex items-center gap-2">
-              {showNames ? (
-                <input
-                  type="text"
-                  value={row.name}
-                  onChange={e => updateSubItem(c.key, row.id, 'name', e.target.value)}
-                  placeholder="e.g. Chase Savings"
-                  className={textInputCls + ' flex-1'}
-                />
-              ) : (
-                <div className="flex-1" />
-              )}
+              <input
+                type="text"
+                value={row.name}
+                onChange={e => updateSubItem(c.key, row.id, 'name', e.target.value)}
+                placeholder="Description (optional)"
+                aria-label={hasMultiple ? `${c.label} name ${idx + 1}` : `${c.label} name`}
+                className={textInputCls + ' flex-1'}
+              />
               <input
                 type="number"
                 value={row.amount}
@@ -263,10 +279,10 @@ export function NetWorthPage() {
                 onWheel={blurOnWheel}
                 placeholder="0.00"
                 step="0.01"
-                aria-label={showNames ? `${c.label} ${idx + 1}` : c.label}
+                aria-label={hasMultiple ? `${c.label} ${idx + 1}` : c.label}
                 className={inputCls + ' w-32'}
               />
-              {showNames && (
+              {hasMultiple && (
                 <button
                   type="button"
                   onClick={() => removeSubItem(c.key, row.id)}
@@ -304,9 +320,9 @@ export function NetWorthPage() {
       <button
         type="button"
         onClick={() => setAddingCategoryType(type)}
-        className="mt-2 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+        className="mt-2 px-2 py-0.5 bg-emerald-600 text-white text-[11px] rounded-[6px] hover:bg-emerald-700"
       >
-        + Add Custom {type === 'ASSET' ? 'Asset' : 'Liability'}
+        Add Custom {type === 'ASSET' ? 'Asset' : 'Liability'}
       </button>
     )
   );
@@ -370,8 +386,12 @@ export function NetWorthPage() {
       </div>
 
       <div className="flex gap-2 pt-1">
-        <button type="submit" className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-[7px] hover:bg-emerald-700">
-          {submitLabel}
+        <button
+          type="submit"
+          disabled={saving}
+          className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-[7px] hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : submitLabel}
         </button>
         <button type="button" onClick={handleCancel} className="px-4 py-2 bg-slate-700 text-white text-sm rounded-[7px] hover:bg-slate-600">
           Cancel
@@ -384,6 +404,54 @@ export function NetWorthPage() {
     () => [...snapshots].sort((a, b) => a.date.localeCompare(b.date)),
     [snapshots]
   );
+
+  const renderEntryDetail = (e: NetWorthEntry) => {
+    const label = categoryMap.get(e.category)?.label ?? 'Unknown';
+    const total = e.subItems.reduce((s, si) => s + si.amount, 0);
+    return (
+      <div key={e.category}>
+        <div className="flex justify-between text-xs">
+          <span className="text-slate-600">{label}</span>
+          <span className="font-mono text-slate-700">{fmt(total)}</span>
+        </div>
+        <div className="pl-3 mt-0.5 space-y-0.5">
+          {e.subItems.map((si, i) => (
+            <div key={i} className="flex justify-between text-[11px] text-slate-400">
+              <span>{si.name || '—'}</span>
+              <span className="font-mono">{fmt(si.amount)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSnapshotDetail = (s: NetWorthSnapshot) => {
+    const assetEntries = s.entries.filter(e => categoryMap.get(e.category)?.type === 'ASSET');
+    const liabilityEntries = s.entries.filter(e => categoryMap.get(e.category)?.type === 'LIABILITY');
+
+    return (
+      <tr>
+        <td colSpan={5} className="px-4 py-4 border-b border-slate-100 bg-slate-50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-2">ASSETS</div>
+              <div className="space-y-2">{assetEntries.map(renderEntryDetail)}</div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-slate-400 tracking-wider mb-2">LIABILITIES</div>
+              <div className="space-y-2">{liabilityEntries.map(renderEntryDetail)}</div>
+            </div>
+          </div>
+          {s.notes && (
+            <div className="mt-3 text-xs text-slate-500">
+              <span className="font-semibold text-slate-600">Notes: </span>{s.notes}
+            </div>
+          )}
+        </td>
+      </tr>
+    );
+  };
 
   if (loading) {
     return <div className="text-sm text-slate-400 py-12 text-center">Loading...</div>;
@@ -451,28 +519,36 @@ export function NetWorthPage() {
                 const change = prev ? total - snapshotTotal(prev, categoryMap) : null;
                 const months = prev ? monthsBetween(prev.date, s.date) : 0;
 
+                const isViewing = viewingId === s.id;
+
                 return (
-                  <tr key={s.id} className="border-b border-slate-100 last:border-b-0 hover:bg-slate-50 group">
-                    <td className="px-4 py-2.5 text-slate-700">{formatDate(s.date)}</td>
-                    <td className={`px-4 py-2.5 text-right font-mono ${total >= 0 ? 'text-slate-800' : 'text-red-600'}`}>{fmt(total)}</td>
-                    <td className="px-4 py-2.5 text-right font-mono">
-                      {change === null ? (
-                        <span className="text-slate-300">—</span>
-                      ) : (
-                        <span className={change >= 0 ? 'text-emerald-600' : 'text-red-600'}>
-                          {change >= 0 ? '+' : ''}{fmt(change)}
-                          {months > 1 && <span className="text-slate-400 font-sans text-xs"> ({fmt(change / months)}/mo)</span>}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-500 text-xs max-w-xs truncate" title={s.notes}>{s.notes}</td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => handleStartEdit(s)} className="text-xs text-slate-500 hover:text-emerald-600">Edit</button>
-                        <button onClick={() => handleDelete(s.id)} className="text-xs text-slate-500 hover:text-red-600">Delete</button>
-                      </div>
-                    </td>
-                  </tr>
+                  <Fragment key={s.id}>
+                    <tr className={`border-b border-slate-100 last:border-b-0 hover:bg-slate-50 group ${isViewing ? 'bg-slate-50' : ''}`}>
+                      <td className="px-4 py-2.5 text-slate-700">{formatDate(s.date)}</td>
+                      <td className={`px-4 py-2.5 text-right font-mono ${total >= 0 ? 'text-slate-800' : 'text-red-600'}`}>{fmt(total)}</td>
+                      <td className="px-4 py-2.5 text-right font-mono">
+                        {change === null ? (
+                          <span className="text-slate-300">—</span>
+                        ) : (
+                          <span className={change >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                            {change >= 0 ? '+' : ''}{fmt(change)}
+                            {months > 1 && <span className="text-slate-400 font-sans text-xs"> ({fmt(change / months)}/mo)</span>}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-500 text-xs max-w-xs truncate" title={s.notes}>{s.notes}</td>
+                      <td className="px-4 py-2.5">
+                        <div className={`flex gap-2 justify-end transition-opacity ${isViewing ? '' : 'opacity-0 group-hover:opacity-100'}`}>
+                          <button onClick={() => handleToggleView(s.id)} className="text-xs text-slate-500 hover:text-emerald-600">
+                            {isViewing ? 'Hide' : 'View'}
+                          </button>
+                          <button onClick={() => handleStartEdit(s)} className="text-xs text-slate-500 hover:text-emerald-600">Edit</button>
+                          <button onClick={() => handleDelete(s.id)} className="text-xs text-slate-500 hover:text-red-600">Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                    {isViewing && renderSnapshotDetail(s)}
+                  </Fragment>
                 );
               })}
             </tbody>
