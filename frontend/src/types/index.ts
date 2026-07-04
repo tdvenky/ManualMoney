@@ -125,6 +125,49 @@ export interface UpdateTemplateRequest {
   allocations: TemplateAllocation[];
 }
 
+export type NetWorthCategoryType = 'ASSET' | 'LIABILITY';
+
+export type NetWorthCategoryKey =
+  | 'REAL_ESTATE'
+  | 'CHECKING'
+  | 'SAVINGS'
+  | 'RETIREMENT'
+  | 'HSA'
+  | 'CARS'
+  | 'OTHER_ASSETS'
+  | 'REAL_ESTATE_LOAN'
+  | 'CREDIT_CARD'
+  | 'PERSONAL_LOAN'
+  | 'STUDENT_LOAN'
+  | 'CAR_LOAN'
+  | 'OTHER_DEBT';
+
+export interface NetWorthCategoryMeta {
+  key: NetWorthCategoryKey;
+  label: string;
+  type: NetWorthCategoryType;
+}
+
+export interface NetWorthEntry {
+  category: NetWorthCategoryKey;
+  amount: number;
+}
+
+export interface NetWorthSnapshot {
+  id: string;
+  date: string;
+  entries: NetWorthEntry[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NetWorthSnapshotRequest {
+  date: string;
+  entries: NetWorthEntry[];
+  notes?: string;
+}
+
 export interface AppData {
   categories: Category[];
   subCategories: SubCategory[];

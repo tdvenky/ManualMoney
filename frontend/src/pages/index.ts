@@ -6,3 +6,4 @@ export { NewPayPeriodPage } from './NewPayPeriodPage';
 export { DataPage } from './DataPage';
 export { MonthlyPage } from './MonthlyPage';
 export { TemplatesPage } from './TemplatesPage';
+export { NetWorthPage } from './NetWorthPage';

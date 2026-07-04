@@ -25,6 +25,9 @@ import type {
   UpdateTransactionRequest,
   SavingsTransferRequest,
   ClosePayPeriodRequest,
+  NetWorthCategoryMeta,
+  NetWorthSnapshot,
+  NetWorthSnapshotRequest,
 } from '../types';
 
 const api = axios.create({
@@ -205,6 +208,31 @@ export const updateTemplate = async (id: string, data: UpdateTemplateRequest): P
 
 export const deleteTemplate = async (id: string): Promise<void> => {
   await api.delete(`/templates/${id}`);
+};
+
+// Net Worth API
+export const getNetWorthCategories = async (): Promise<NetWorthCategoryMeta[]> => {
+  const response = await api.get<NetWorthCategoryMeta[]>('/networth/categories');
+  return response.data;
+};
+
+export const getNetWorthSnapshots = async (): Promise<NetWorthSnapshot[]> => {
+  const response = await api.get<NetWorthSnapshot[]>('/networth/snapshots');
+  return response.data;
+};
+
+export const createNetWorthSnapshot = async (data: NetWorthSnapshotRequest): Promise<NetWorthSnapshot> => {
+  const response = await api.post<NetWorthSnapshot>('/networth/snapshots', data);
+  return response.data;
+};
+
+export const updateNetWorthSnapshot = async (id: string, data: NetWorthSnapshotRequest): Promise<NetWorthSnapshot> => {
+  const response = await api.put<NetWorthSnapshot>(`/networth/snapshots/${id}`, data);
+  return response.data;
+};
+
+export const deleteNetWorthSnapshot = async (id: string): Promise<void> => {
+  await api.delete(`/networth/snapshots/${id}`);
 };
 
 // Export/Import API

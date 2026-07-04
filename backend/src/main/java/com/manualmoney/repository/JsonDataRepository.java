@@ -301,6 +301,39 @@ public class JsonDataRepository {
         saveData();
     }
 
+    // NetWorthSnapshot operations
+    public List<NetWorthSnapshot> findAllNetWorthSnapshots() {
+        List<NetWorthSnapshot> sorted = new ArrayList<>(appData.getNetWorthSnapshots());
+        sorted.sort((a, b) -> a.getDate().compareTo(b.getDate()));
+        return sorted;
+    }
+
+    public Optional<NetWorthSnapshot> findNetWorthSnapshotById(UUID id) {
+        return appData.getNetWorthSnapshots().stream()
+                .filter(s -> s.getId().equals(id))
+                .findFirst();
+    }
+
+    public NetWorthSnapshot saveNetWorthSnapshot(NetWorthSnapshot snapshot) {
+        Optional<NetWorthSnapshot> existing = findNetWorthSnapshotById(snapshot.getId());
+        if (existing.isPresent()) {
+            NetWorthSnapshot s = existing.get();
+            s.setDate(snapshot.getDate());
+            s.setEntries(snapshot.getEntries());
+            s.setNotes(snapshot.getNotes());
+            s.setUpdatedAt(LocalDateTime.now());
+        } else {
+            appData.getNetWorthSnapshots().add(snapshot);
+        }
+        saveData();
+        return snapshot;
+    }
+
+    public void deleteNetWorthSnapshot(UUID id) {
+        appData.getNetWorthSnapshots().removeIf(s -> s.getId().equals(id));
+        saveData();
+    }
+
     // Export/Import
     public AppData exportData() {
         return appData;
