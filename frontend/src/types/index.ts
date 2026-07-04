@@ -127,30 +127,24 @@ export interface UpdateTemplateRequest {
 
 export type NetWorthCategoryType = 'ASSET' | 'LIABILITY';
 
-export type NetWorthCategoryKey =
-  | 'REAL_ESTATE'
-  | 'CHECKING'
-  | 'SAVINGS'
-  | 'RETIREMENT'
-  | 'HSA'
-  | 'CARS'
-  | 'OTHER_ASSETS'
-  | 'REAL_ESTATE_LOAN'
-  | 'CREDIT_CARD'
-  | 'PERSONAL_LOAN'
-  | 'STUDENT_LOAN'
-  | 'CAR_LOAN'
-  | 'OTHER_DEBT';
+// Either a fixed category's enum name (e.g. "SAVINGS") or a custom category's UUID.
+export type NetWorthCategoryKey = string;
 
 export interface NetWorthCategoryMeta {
   key: NetWorthCategoryKey;
   label: string;
   type: NetWorthCategoryType;
+  custom: boolean;
+}
+
+export interface NetWorthSubItem {
+  name?: string;
+  amount: number;
 }
 
 export interface NetWorthEntry {
   category: NetWorthCategoryKey;
-  amount: number;
+  subItems: NetWorthSubItem[];
 }
 
 export interface NetWorthSnapshot {
@@ -166,6 +160,11 @@ export interface NetWorthSnapshotRequest {
   date: string;
   entries: NetWorthEntry[];
   notes?: string;
+}
+
+export interface CreateNetWorthCategoryRequest {
+  name: string;
+  type: NetWorthCategoryType;
 }
 
 export interface AppData {

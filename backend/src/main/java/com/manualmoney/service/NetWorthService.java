@@ -1,6 +1,8 @@
 package com.manualmoney.service;
 
+import com.manualmoney.model.CustomNetWorthCategory;
 import com.manualmoney.model.NetWorthCategory;
+import com.manualmoney.model.NetWorthCategoryType;
 import com.manualmoney.model.NetWorthEntry;
 import com.manualmoney.model.NetWorthSnapshot;
 import com.manualmoney.repository.JsonDataRepository;
@@ -22,6 +24,30 @@ public class NetWorthService {
 
     public NetWorthCategory[] getCategories() {
         return NetWorthCategory.values();
+    }
+
+    public List<CustomNetWorthCategory> getCustomCategories() {
+        return repository.findAllCustomNetWorthCategories();
+    }
+
+    public CustomNetWorthCategory createCustomCategory(String name, NetWorthCategoryType type) {
+        CustomNetWorthCategory category = new CustomNetWorthCategory(name, type);
+        return repository.saveCustomNetWorthCategory(category);
+    }
+
+    public boolean deleteCustomCategory(UUID id) {
+        if (!repository.findCustomNetWorthCategoryById(id).isPresent()) {
+            return false;
+        }
+        String key = id.toString();
+        boolean inUse = repository.findAllNetWorthSnapshots().stream()
+                .flatMap(s -> s.getEntries().stream())
+                .anyMatch(e -> key.equals(e.getCategory()));
+        if (inUse) {
+            throw new IllegalStateException("Cannot delete a category that is used in an existing snapshot");
+        }
+        repository.deleteCustomNetWorthCategory(id);
+        return true;
     }
 
     public List<NetWorthSnapshot> getAllSnapshots() {

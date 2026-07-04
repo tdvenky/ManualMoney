@@ -9,23 +9,25 @@ vi.mock('../../src/api/client', () => ({
   createNetWorthSnapshot: vi.fn(),
   updateNetWorthSnapshot: vi.fn(),
   deleteNetWorthSnapshot: vi.fn(),
+  createNetWorthCategory: vi.fn(),
+  deleteNetWorthCategory: vi.fn(),
 }));
 
 import * as api from '../../src/api/client';
 
 const mockCategories: NetWorthCategoryMeta[] = [
-  { key: 'CHECKING', label: 'Checking', type: 'ASSET' },
-  { key: 'SAVINGS', label: 'Savings', type: 'ASSET' },
-  { key: 'CREDIT_CARD', label: 'Credit Card', type: 'LIABILITY' },
+  { key: 'CHECKING', label: 'Checking', type: 'ASSET', custom: false },
+  { key: 'SAVINGS', label: 'Savings', type: 'ASSET', custom: false },
+  { key: 'CREDIT_CARD', label: 'Credit Card', type: 'LIABILITY', custom: false },
 ];
 
 const mockSnapshotJan: NetWorthSnapshot = {
   id: 's1',
   date: '2024-01-28',
   entries: [
-    { category: 'CHECKING', amount: 5000 },
-    { category: 'SAVINGS', amount: 10000 },
-    { category: 'CREDIT_CARD', amount: 500 },
+    { category: 'CHECKING', subItems: [{ amount: 5000 }] },
+    { category: 'SAVINGS', subItems: [{ amount: 10000 }] },
+    { category: 'CREDIT_CARD', subItems: [{ amount: 500 }] },
   ],
   createdAt: '',
   updatedAt: '',
@@ -35,9 +37,9 @@ const mockSnapshotMar: NetWorthSnapshot = {
   id: 's2',
   date: '2024-03-02',
   entries: [
-    { category: 'CHECKING', amount: 6000 },
-    { category: 'SAVINGS', amount: 11000 },
-    { category: 'CREDIT_CARD', amount: 300 },
+    { category: 'CHECKING', subItems: [{ amount: 6000 }] },
+    { category: 'SAVINGS', subItems: [{ amount: 11000 }] },
+    { category: 'CREDIT_CARD', subItems: [{ amount: 300 }] },
   ],
   createdAt: '',
   updatedAt: '',
@@ -127,9 +129,91 @@ describe('NetWorthPage', () => {
         expect.objectContaining({
           date: '2024-01-28',
           entries: expect.arrayContaining([
-            { category: 'CHECKING', amount: 5000 },
-            { category: 'SAVINGS', amount: 10000 },
-            { category: 'CREDIT_CARD', amount: 500 },
+            { category: 'CHECKING', subItems: [{ name: undefined, amount: 5000 }] },
+            { category: 'SAVINGS', subItems: [{ name: undefined, amount: 10000 }] },
+            { category: 'CREDIT_CARD', subItems: [{ name: undefined, amount: 500 }] },
+          ]),
+        })
+      );
+    });
+  });
+
+  it('splits a category into named sub-items and sums the total', async () => {
+    vi.mocked(api.getNetWorthCategories).mockResolvedValue(mockCategories);
+    vi.mocked(api.getNetWorthSnapshots).mockResolvedValue([]);
+    vi.mocked(api.createNetWorthSnapshot).mockResolvedValue(mockSnapshotJan);
+
+    render(<NetWorthPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('New Snapshot')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('New Snapshot'));
+
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2024-01-28' } });
+    fireEvent.change(screen.getByLabelText('Savings'), { target: { value: '5000' } });
+
+    // Split Savings into a second named sub-item
+    const savingsAddButtons = screen.getAllByText('+ Add');
+    fireEvent.click(savingsAddButtons[1]); // 0=Checking, 1=Savings, 2=CreditCard
+
+    const nameInputs = screen.getAllByPlaceholderText('e.g. Chase Savings');
+    fireEvent.change(nameInputs[0], { target: { value: 'Chase Savings' } });
+    fireEvent.change(screen.getByLabelText('Savings 2'), { target: { value: '3000' } });
+    fireEvent.change(screen.getAllByPlaceholderText('e.g. Chase Savings')[1], { target: { value: 'Ally Savings' } });
+
+    fireEvent.click(screen.getByText('Save Snapshot'));
+
+    await waitFor(() => {
+      expect(api.createNetWorthSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entries: expect.arrayContaining([
+            {
+              category: 'SAVINGS',
+              subItems: [
+                { name: 'Chase Savings', amount: 5000 },
+                { name: 'Ally Savings', amount: 3000 },
+              ],
+            },
+          ]),
+        })
+      );
+    });
+  });
+
+  it('creates a custom category and includes it in the submitted entries', async () => {
+    vi.mocked(api.getNetWorthCategories).mockResolvedValue(mockCategories);
+    vi.mocked(api.getNetWorthSnapshots).mockResolvedValue([]);
+    vi.mocked(api.createNetWorthCategory).mockResolvedValue({
+      key: 'custom-1', label: 'Gold', type: 'ASSET', custom: true,
+    });
+    vi.mocked(api.createNetWorthSnapshot).mockResolvedValue(mockSnapshotJan);
+
+    render(<NetWorthPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('New Snapshot')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByText('New Snapshot'));
+
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: '2024-01-28' } });
+    fireEvent.click(screen.getByText('+ Add Custom Asset'));
+    fireEvent.change(screen.getByPlaceholderText('Category name'), { target: { value: 'Gold' } });
+    fireEvent.click(screen.getByText('Add'));
+
+    await waitFor(() => {
+      expect(api.createNetWorthCategory).toHaveBeenCalledWith({ name: 'Gold', type: 'ASSET' });
+      expect(screen.getByText('Gold')).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText('Gold'), { target: { value: '315' } });
+    fireEvent.click(screen.getByText('Save Snapshot'));
+
+    await waitFor(() => {
+      expect(api.createNetWorthSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({
+          entries: expect.arrayContaining([
+            { category: 'custom-1', subItems: [{ name: undefined, amount: 315 }] },
           ]),
         })
       );

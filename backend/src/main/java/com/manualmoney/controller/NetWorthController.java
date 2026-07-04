@@ -1,17 +1,22 @@
 package com.manualmoney.controller;
 
+import com.manualmoney.model.CustomNetWorthCategory;
 import com.manualmoney.model.NetWorthCategory;
 import com.manualmoney.model.NetWorthCategoryType;
 import com.manualmoney.model.NetWorthEntry;
 import com.manualmoney.model.NetWorthSnapshot;
+import com.manualmoney.model.NetWorthSubItem;
 import com.manualmoney.service.NetWorthService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -24,13 +29,42 @@ public class NetWorthController {
         this.netWorthService = netWorthService;
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(Collections.singletonMap("error", ex.getMessage()));
+    }
+
     @GetMapping("/categories")
     public List<CategoryResponse> getCategories() {
         List<CategoryResponse> result = new ArrayList<>();
         for (NetWorthCategory category : netWorthService.getCategories()) {
-            result.add(new CategoryResponse(category.name(), category.getLabel(), category.getType()));
+            result.add(new CategoryResponse(category.name(), category.getLabel(), category.getType(), false));
+        }
+        for (CustomNetWorthCategory custom : netWorthService.getCustomCategories()) {
+            result.add(new CategoryResponse(custom.getId().toString(), custom.getName(), custom.getType(), true));
         }
         return result;
+    }
+
+    @PostMapping("/categories")
+    public CategoryResponse createCategory(@RequestBody CustomCategoryRequest request) {
+        CustomNetWorthCategory created = netWorthService.createCustomCategory(request.getName(), request.getType());
+        return new CategoryResponse(created.getId().toString(), created.getName(), created.getType(), true);
+    }
+
+    @DeleteMapping("/categories/{key}")
+    public ResponseEntity<Void> deleteCategory(@PathVariable String key) {
+        UUID id;
+        try {
+            id = UUID.fromString(key);
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.notFound().build();
+        }
+        if (netWorthService.deleteCustomCategory(id)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
     }
 
     @GetMapping("/snapshots")
@@ -69,16 +103,30 @@ public class NetWorthController {
         private final String key;
         private final String label;
         private final NetWorthCategoryType type;
+        private final boolean custom;
 
-        public CategoryResponse(String key, String label, NetWorthCategoryType type) {
+        public CategoryResponse(String key, String label, NetWorthCategoryType type, boolean custom) {
             this.key = key;
             this.label = label;
             this.type = type;
+            this.custom = custom;
         }
 
         public String getKey() { return key; }
         public String getLabel() { return label; }
         public NetWorthCategoryType getType() { return type; }
+        public boolean isCustom() { return custom; }
+    }
+
+    public static class CustomCategoryRequest {
+        private String name;
+        private NetWorthCategoryType type;
+
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
+
+        public NetWorthCategoryType getType() { return type; }
+        public void setType(NetWorthCategoryType type) { this.type = type; }
     }
 
     public static class SnapshotRequest {
@@ -98,18 +146,37 @@ public class NetWorthController {
         public List<NetWorthEntry> toEntries() {
             List<NetWorthEntry> result = new ArrayList<>();
             for (EntryRequest e : entries) {
-                result.add(new NetWorthEntry(e.getCategory(), e.getAmount()));
+                result.add(new NetWorthEntry(e.getCategory(), e.toSubItems()));
             }
             return result;
         }
     }
 
     public static class EntryRequest {
-        private NetWorthCategory category;
+        private String category;
+        private List<SubItemRequest> subItems = new ArrayList<>();
+
+        public String getCategory() { return category; }
+        public void setCategory(String category) { this.category = category; }
+
+        public List<SubItemRequest> getSubItems() { return subItems; }
+        public void setSubItems(List<SubItemRequest> subItems) { this.subItems = subItems; }
+
+        public List<NetWorthSubItem> toSubItems() {
+            List<NetWorthSubItem> result = new ArrayList<>();
+            for (SubItemRequest s : subItems) {
+                result.add(new NetWorthSubItem(s.getName(), s.getAmount()));
+            }
+            return result;
+        }
+    }
+
+    public static class SubItemRequest {
+        private String name;
         private BigDecimal amount;
 
-        public NetWorthCategory getCategory() { return category; }
-        public void setCategory(NetWorthCategory category) { this.category = category; }
+        public String getName() { return name; }
+        public void setName(String name) { this.name = name; }
 
         public BigDecimal getAmount() { return amount; }
         public void setAmount(BigDecimal amount) { this.amount = amount; }

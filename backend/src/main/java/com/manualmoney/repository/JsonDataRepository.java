@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -44,6 +45,7 @@ public class JsonDataRepository {
                 appData = objectMapper.readValue(file, AppData.class);
                 backfillCategoryNames();
                 backfillIncomes();
+                backfillNetWorthSubItems();
             } catch (IOException e) {
                 appData = new AppData();
             }
@@ -77,6 +79,22 @@ public class JsonDataRepository {
                 Income defaultIncome = new Income("Salary", payPeriod.getAmount(), payPeriod.getPayDate());
                 payPeriod.getIncomes().add(defaultIncome);
                 changed[0] = true;
+            }
+        }
+        if (changed[0]) {
+            saveData();
+        }
+    }
+
+    private void backfillNetWorthSubItems() {
+        boolean[] changed = {false};
+        for (NetWorthSnapshot snapshot : appData.getNetWorthSnapshots()) {
+            for (NetWorthEntry entry : snapshot.getEntries()) {
+                if (entry.getSubItems().isEmpty() && entry.getAmount() != null) {
+                    entry.setSubItems(new ArrayList<>(Collections.singletonList(
+                            new NetWorthSubItem(null, entry.getAmount()))));
+                    changed[0] = true;
+                }
             }
         }
         if (changed[0]) {
@@ -331,6 +349,28 @@ public class JsonDataRepository {
 
     public void deleteNetWorthSnapshot(UUID id) {
         appData.getNetWorthSnapshots().removeIf(s -> s.getId().equals(id));
+        saveData();
+    }
+
+    // CustomNetWorthCategory operations
+    public List<CustomNetWorthCategory> findAllCustomNetWorthCategories() {
+        return appData.getCustomNetWorthCategories();
+    }
+
+    public Optional<CustomNetWorthCategory> findCustomNetWorthCategoryById(UUID id) {
+        return appData.getCustomNetWorthCategories().stream()
+                .filter(c -> c.getId().equals(id))
+                .findFirst();
+    }
+
+    public CustomNetWorthCategory saveCustomNetWorthCategory(CustomNetWorthCategory category) {
+        appData.getCustomNetWorthCategories().add(category);
+        saveData();
+        return category;
+    }
+
+    public void deleteCustomNetWorthCategory(UUID id) {
+        appData.getCustomNetWorthCategories().removeIf(c -> c.getId().equals(id));
         saveData();
     }
 

@@ -28,6 +28,7 @@ import type {
   NetWorthCategoryMeta,
   NetWorthSnapshot,
   NetWorthSnapshotRequest,
+  CreateNetWorthCategoryRequest,
 } from '../types';
 
 const api = axios.create({
@@ -214,6 +215,15 @@ export const deleteTemplate = async (id: string): Promise<void> => {
 export const getNetWorthCategories = async (): Promise<NetWorthCategoryMeta[]> => {
   const response = await api.get<NetWorthCategoryMeta[]>('/networth/categories');
   return response.data;
+};
+
+export const createNetWorthCategory = async (data: CreateNetWorthCategoryRequest): Promise<NetWorthCategoryMeta> => {
+  const response = await api.post<NetWorthCategoryMeta>('/networth/categories', data);
+  return response.data;
+};
+
+export const deleteNetWorthCategory = async (key: string): Promise<void> => {
+  await api.delete(`/networth/categories/${key}`);
 };
 
 export const getNetWorthSnapshots = async (): Promise<NetWorthSnapshot[]> => {

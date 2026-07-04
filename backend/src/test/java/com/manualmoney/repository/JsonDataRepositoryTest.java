@@ -479,6 +479,39 @@ class JsonDataRepositoryTest {
         assertEquals(2, repository.findAllPayPeriods().size());
     }
 
+    // --- Net worth sub-item migration ---
+
+    @Test
+    void init_shouldMigrateLegacyFlatAmountEntriesToSubItems() throws Exception {
+        Path legacyFile = tempDir.resolve("legacy-networth.json");
+        String legacyJson = "{"
+                + "\"categories\":[],\"subCategories\":[],\"payPeriods\":[],\"templates\":[],"
+                + "\"netWorthSnapshots\":[{"
+                + "\"id\":\"11111111-1111-1111-1111-111111111111\","
+                + "\"date\":\"2024-01-28\","
+                + "\"entries\":[{\"category\":\"SAVINGS\",\"amount\":97347}],"
+                + "\"notes\":null,"
+                + "\"createdAt\":\"2024-01-28T00:00:00\",\"updatedAt\":\"2024-01-28T00:00:00\""
+                + "}]}";
+        java.nio.file.Files.write(legacyFile, legacyJson.getBytes());
+
+        JsonDataRepository freshRepo = new JsonDataRepository();
+        ReflectionTestUtils.setField(freshRepo, "dataPath", legacyFile.toString());
+        freshRepo.init();
+
+        assertEquals(1, freshRepo.findAllNetWorthSnapshots().size());
+        NetWorthEntry entry = freshRepo.findAllNetWorthSnapshots().get(0).getEntries().get(0);
+        assertEquals("SAVINGS", entry.getCategory());
+        assertEquals(1, entry.getSubItems().size());
+        assertEquals(0, new BigDecimal("97347").compareTo(entry.getSubItems().get(0).getAmount()));
+
+        // Verify the migration was persisted: re-loading should not need to migrate again
+        JsonDataRepository reloadedRepo = new JsonDataRepository();
+        ReflectionTestUtils.setField(reloadedRepo, "dataPath", legacyFile.toString());
+        reloadedRepo.init();
+        assertEquals(1, reloadedRepo.findAllNetWorthSnapshots().get(0).getEntries().get(0).getSubItems().size());
+    }
+
     // --- savePayPeriod update preserves allocations ---
 
     @Test

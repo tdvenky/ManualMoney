@@ -14,6 +14,7 @@ public class AppData {
     private List<PayPeriod> payPeriods;
     private List<Template> templates;
     private List<NetWorthSnapshot> netWorthSnapshots;
+    private List<CustomNetWorthCategory> customNetWorthCategories;
 
     public AppData() {
         this.categories = new ArrayList<>();
@@ -21,6 +22,7 @@ public class AppData {
         this.payPeriods = new ArrayList<>();
         this.templates = new ArrayList<>();
         this.netWorthSnapshots = new ArrayList<>();
+        this.customNetWorthCategories = new ArrayList<>();
     }
 
     public List<Category> getCategories() { return categories; }
@@ -37,4 +39,7 @@ public class AppData {
 
     public List<NetWorthSnapshot> getNetWorthSnapshots() { return netWorthSnapshots; }
     public void setNetWorthSnapshots(List<NetWorthSnapshot> netWorthSnapshots) { this.netWorthSnapshots = netWorthSnapshots; }
+
+    public List<CustomNetWorthCategory> getCustomNetWorthCategories() { return customNetWorthCategories; }
+    public void setCustomNetWorthCategories(List<CustomNetWorthCategory> customNetWorthCategories) { this.customNetWorthCategories = customNetWorthCategories; }
 }

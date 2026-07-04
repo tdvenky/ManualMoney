@@ -1,10 +1,18 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { NetWorthCategoryKey, NetWorthCategoryMeta, NetWorthSnapshot } from '../types';
+import { useMemo, useState, useEffect } from 'react';
+import type { NetWorthCategoryKey, NetWorthCategoryMeta, NetWorthCategoryType, NetWorthSnapshot } from '../types';
 import * as api from '../api/client';
 
-type FormEntries = Partial<Record<NetWorthCategoryKey, string>>;
+interface SubItemRow {
+  id: string;
+  name: string;
+  amount: string;
+}
 
-const emptyForm = () => ({ date: '', entries: {} as FormEntries, notes: '' });
+type FormEntries = Partial<Record<string, SubItemRow[]>>;
+
+function newRow(): SubItemRow {
+  return { id: crypto.randomUUID(), name: '', amount: '' };
+}
 
 function monthsBetween(prevDate: string, date: string): number {
   const [py, pm] = prevDate.split('-').map(Number);
@@ -24,7 +32,8 @@ function blurOnWheel(e: React.WheelEvent<HTMLInputElement>) {
 function snapshotTotal(snapshot: NetWorthSnapshot, categoryMap: Map<NetWorthCategoryKey, NetWorthCategoryMeta>): number {
   return snapshot.entries.reduce((sum, e) => {
     const type = categoryMap.get(e.category)?.type;
-    return type === 'LIABILITY' ? sum - e.amount : sum + e.amount;
+    const total = e.subItems.reduce((s, si) => s + si.amount, 0);
+    return type === 'LIABILITY' ? sum - total : sum + total;
   }, 0);
 }
 
@@ -39,6 +48,8 @@ export function NetWorthPage() {
   const [formDate, setFormDate] = useState('');
   const [formEntries, setFormEntries] = useState<FormEntries>({});
   const [formNotes, setFormNotes] = useState('');
+  const [addingCategoryType, setAddingCategoryType] = useState<NetWorthCategoryType | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -65,18 +76,26 @@ export function NetWorthPage() {
 
   useEffect(() => { loadData(); }, []);
 
+  const buildInitialEntries = (cats: NetWorthCategoryMeta[], existing?: NetWorthSnapshot): FormEntries => {
+    const result: FormEntries = {};
+    for (const c of cats) {
+      const entry = existing?.entries.find(e => e.category === c.key);
+      result[c.key] = entry && entry.subItems.length > 0
+        ? entry.subItems.map(si => ({ id: crypto.randomUUID(), name: si.name ?? '', amount: String(si.amount) }))
+        : [newRow()];
+    }
+    return result;
+  };
+
   const resetForm = () => {
-    const f = emptyForm();
-    setFormDate(f.date);
-    setFormEntries(f.entries);
-    setFormNotes(f.notes);
+    setFormDate('');
+    setFormEntries(buildInitialEntries(categories));
+    setFormNotes('');
   };
 
   const loadFormFrom = (s: NetWorthSnapshot) => {
     setFormDate(s.date);
-    const entries: FormEntries = {};
-    for (const e of s.entries) entries[e.category] = String(e.amount);
-    setFormEntries(entries);
+    setFormEntries(buildInitialEntries(categories, s));
     setFormNotes(s.notes ?? '');
   };
 
@@ -95,6 +114,8 @@ export function NetWorthPage() {
   const handleCancel = () => {
     setShowCreate(false);
     setEditingId(null);
+    setAddingCategoryType(null);
+    setNewCategoryName('');
     resetForm();
   };
 
@@ -111,8 +132,13 @@ export function NetWorthPage() {
   const buildPayload = () => ({
     date: formDate,
     entries: categories
-      .filter(c => formEntries[c.key])
-      .map(c => ({ category: c.key, amount: parseFloat(formEntries[c.key]!) })),
+      .map(c => ({
+        category: c.key,
+        subItems: (formEntries[c.key] ?? [])
+          .filter(r => r.amount !== '')
+          .map(r => ({ name: r.name.trim() || undefined, amount: parseFloat(r.amount) })),
+      }))
+      .filter(e => e.subItems.length > 0),
     notes: formNotes.trim() || undefined,
   });
 
@@ -141,11 +167,149 @@ export function NetWorthPage() {
     }
   };
 
-  const inputCls = 'border-[0.5px] border-slate-300 rounded-[7px] px-3 py-2 text-sm font-mono text-slate-800 focus:outline-none focus:border-emerald-500 w-full';
+  const addSubItem = (key: string) => {
+    setFormEntries(prev => ({ ...prev, [key]: [...(prev[key] ?? []), newRow()] }));
+  };
 
-  const totalAssets = assetCategories.reduce((s, c) => s + (parseFloat(formEntries[c.key] ?? '') || 0), 0);
-  const totalLiabilities = liabilityCategories.reduce((s, c) => s + (parseFloat(formEntries[c.key] ?? '') || 0), 0);
+  const removeSubItem = (key: string, id: string) => {
+    setFormEntries(prev => ({ ...prev, [key]: (prev[key] ?? []).filter(r => r.id !== id) }));
+  };
+
+  const updateSubItem = (key: string, id: string, field: 'name' | 'amount', value: string) => {
+    setFormEntries(prev => ({
+      ...prev,
+      [key]: (prev[key] ?? []).map(r => r.id === id ? { ...r, [field]: value } : r),
+    }));
+  };
+
+  const handleAddCategory = async (type: NetWorthCategoryType) => {
+    const name = newCategoryName.trim();
+    if (!name) return;
+    try {
+      const created = await api.createNetWorthCategory({ name, type });
+      setCategories(prev => [...prev, created]);
+      setFormEntries(prev => ({ ...prev, [created.key]: [newRow()] }));
+      setNewCategoryName('');
+      setAddingCategoryType(null);
+    } catch {
+      setError('Failed to add category');
+    }
+  };
+
+  const handleRemoveCategory = async (key: string) => {
+    if (!confirm('Remove this category?')) return;
+    try {
+      await api.deleteNetWorthCategory(key);
+      setCategories(prev => prev.filter(c => c.key !== key));
+      setFormEntries(prev => {
+        const rest = { ...prev };
+        delete rest[key];
+        return rest;
+      });
+    } catch {
+      setError('Failed to remove category. It may still be used in an existing snapshot.');
+    }
+  };
+
+  const inputCls = 'border-[0.5px] border-slate-300 rounded-[7px] px-3 py-2 text-sm font-mono text-slate-800 focus:outline-none focus:border-emerald-500';
+  const textInputCls = 'border-[0.5px] border-slate-300 rounded-[7px] px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-emerald-500';
+
+  const categoryTotal = (key: string) =>
+    (formEntries[key] ?? []).reduce((s, r) => s + (parseFloat(r.amount) || 0), 0);
+
+  const totalAssets = assetCategories.reduce((s, c) => s + categoryTotal(c.key), 0);
+  const totalLiabilities = liabilityCategories.reduce((s, c) => s + categoryTotal(c.key), 0);
   const netWorth = totalAssets - totalLiabilities;
+
+  const renderCategoryBlock = (c: NetWorthCategoryMeta) => {
+    const rows = formEntries[c.key] ?? [newRow()];
+    const showNames = rows.length > 1;
+    const total = categoryTotal(c.key);
+
+    return (
+      <div key={c.key}>
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-sm text-slate-600">{c.label}</span>
+          <div className="flex items-center gap-2">
+            {showNames && <span className="text-xs font-mono text-slate-400">{fmt(total)}</span>}
+            <button type="button" onClick={() => addSubItem(c.key)} className="text-[11px] text-emerald-600 hover:text-emerald-700">
+              + Add
+            </button>
+            {c.custom && (
+              <button type="button" onClick={() => handleRemoveCategory(c.key)} className="text-[11px] text-slate-400 hover:text-red-500">
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="space-y-1">
+          {rows.map((row, idx) => (
+            <div key={row.id} className="flex items-center gap-2">
+              {showNames ? (
+                <input
+                  type="text"
+                  value={row.name}
+                  onChange={e => updateSubItem(c.key, row.id, 'name', e.target.value)}
+                  placeholder="e.g. Chase Savings"
+                  className={textInputCls + ' flex-1'}
+                />
+              ) : (
+                <div className="flex-1" />
+              )}
+              <input
+                type="number"
+                value={row.amount}
+                onChange={e => updateSubItem(c.key, row.id, 'amount', e.target.value)}
+                onWheel={blurOnWheel}
+                placeholder="0.00"
+                step="0.01"
+                aria-label={showNames ? `${c.label} ${idx + 1}` : c.label}
+                className={inputCls + ' w-32'}
+              />
+              {showNames && (
+                <button
+                  type="button"
+                  onClick={() => removeSubItem(c.key, row.id)}
+                  className="text-slate-400 hover:text-red-500 text-lg leading-none px-1"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAddCategoryControl = (type: NetWorthCategoryType) => (
+    addingCategoryType === type ? (
+      <div className="flex gap-2 mt-2">
+        <input
+          type="text"
+          value={newCategoryName}
+          onChange={e => setNewCategoryName(e.target.value)}
+          placeholder="Category name"
+          className={textInputCls + ' flex-1'}
+          autoFocus
+        />
+        <button type="button" onClick={() => handleAddCategory(type)} className="text-xs px-2 py-1 bg-emerald-600 text-white rounded-[7px] hover:bg-emerald-700">
+          Add
+        </button>
+        <button type="button" onClick={() => { setAddingCategoryType(null); setNewCategoryName(''); }} className="text-xs px-2 py-1 bg-slate-700 text-white rounded-[7px] hover:bg-slate-600">
+          Cancel
+        </button>
+      </div>
+    ) : (
+      <button
+        type="button"
+        onClick={() => setAddingCategoryType(type)}
+        className="mt-2 text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+      >
+        + Add Custom {type === 'ASSET' ? 'Asset' : 'Liability'}
+      </button>
+    )
+  );
 
   const renderForm = (onSubmit: (e: React.FormEvent) => void, submitLabel: string) => (
     <form onSubmit={onSubmit} className="space-y-4">
@@ -156,7 +320,7 @@ export function NetWorthPage() {
           type="date"
           value={formDate}
           onChange={e => setFormDate(e.target.value)}
-          className={inputCls + ' max-w-xs'}
+          className={inputCls + ' w-full max-w-xs'}
           required
         />
       </div>
@@ -164,43 +328,17 @@ export function NetWorthPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div>
           <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-2">ASSETS</div>
-          <div className="space-y-2">
-            {assetCategories.map(c => (
-              <div key={c.key} className="flex items-center gap-2">
-                <label htmlFor={`networth-entry-${c.key}`} className="flex-1 text-sm text-slate-600">{c.label}</label>
-                <input
-                  id={`networth-entry-${c.key}`}
-                  type="number"
-                  value={formEntries[c.key] ?? ''}
-                  onChange={e => setFormEntries(prev => ({ ...prev, [c.key]: e.target.value }))}
-                  onWheel={blurOnWheel}
-                  placeholder="0.00"
-                  step="0.01"
-                  className={inputCls + ' w-32'}
-                />
-              </div>
-            ))}
+          <div className="space-y-3">
+            {assetCategories.map(c => renderCategoryBlock(c))}
           </div>
+          {renderAddCategoryControl('ASSET')}
         </div>
         <div>
           <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-2">LIABILITIES</div>
-          <div className="space-y-2">
-            {liabilityCategories.map(c => (
-              <div key={c.key} className="flex items-center gap-2">
-                <label htmlFor={`networth-entry-${c.key}`} className="flex-1 text-sm text-slate-600">{c.label}</label>
-                <input
-                  id={`networth-entry-${c.key}`}
-                  type="number"
-                  value={formEntries[c.key] ?? ''}
-                  onChange={e => setFormEntries(prev => ({ ...prev, [c.key]: e.target.value }))}
-                  onWheel={blurOnWheel}
-                  placeholder="0.00"
-                  step="0.01"
-                  className={inputCls + ' w-32'}
-                />
-              </div>
-            ))}
+          <div className="space-y-3">
+            {liabilityCategories.map(c => renderCategoryBlock(c))}
           </div>
+          {renderAddCategoryControl('LIABILITY')}
         </div>
       </div>
 
@@ -211,7 +349,7 @@ export function NetWorthPage() {
           value={formNotes}
           onChange={e => setFormNotes(e.target.value)}
           placeholder="e.g. IRA lost value due to market dip"
-          className={inputCls + ' font-sans'}
+          className={inputCls + ' font-sans w-full'}
           rows={2}
         />
       </div>
