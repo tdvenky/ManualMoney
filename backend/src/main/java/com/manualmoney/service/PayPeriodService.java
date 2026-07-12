@@ -2,6 +2,8 @@ package com.manualmoney.service;
 
 import com.manualmoney.model.*;
 import com.manualmoney.repository.JsonDataRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -14,6 +16,8 @@ import java.util.UUID;
 
 @Service
 public class PayPeriodService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PayPeriodService.class);
 
     private final JsonDataRepository repository;
 
@@ -31,14 +35,18 @@ public class PayPeriodService {
 
     public PayPeriod createPayPeriod(LocalDate payDate, LocalDate endDate) {
         PayPeriod payPeriod = new PayPeriod(payDate, endDate);
-        return repository.savePayPeriod(payPeriod);
+        PayPeriod saved = repository.savePayPeriod(payPeriod);
+        logger.info("Created pay period {} ({} to {})", saved.getId(), payDate, endDate);
+        return saved;
     }
 
     public Optional<PayPeriod> updatePayPeriod(UUID id, LocalDate payDate, LocalDate endDate) {
         return repository.findPayPeriodById(id).map(payPeriod -> {
             payPeriod.setPayDate(payDate);
             payPeriod.setEndDate(endDate);
-            return repository.savePayPeriod(payPeriod);
+            PayPeriod saved = repository.savePayPeriod(payPeriod);
+            logger.info("Updated pay period {}", id);
+            return saved;
         });
     }
 
@@ -47,6 +55,7 @@ public class PayPeriodService {
             Income income = new Income(description, amount, date);
             payPeriod.getIncomes().add(income);
             repository.savePayPeriod(payPeriod);
+            logger.info("Added income {} to pay period {}", income.getId(), payPeriodId);
             return income;
         });
     }
@@ -70,6 +79,7 @@ public class PayPeriodService {
             income.setDate(date);
             income.setUpdatedAt(LocalDateTime.now());
             repository.save();
+            logger.info("Updated income {}", incomeId);
             return income;
         });
     }
@@ -90,7 +100,12 @@ public class PayPeriodService {
                     "Cannot delete income: remaining total would be less than allocated amount of " + totalAllocated);
         }
         boolean removed = payPeriod.getIncomes().removeIf(i -> i.getId().equals(incomeId));
-        if (removed) repository.savePayPeriod(payPeriod);
+        if (removed) {
+            repository.savePayPeriod(payPeriod);
+            logger.info("Deleted income {}", incomeId);
+        } else {
+            logger.warn("Attempted to delete income {} but it was not found", incomeId);
+        }
         return removed;
     }
 
@@ -105,7 +120,9 @@ public class PayPeriodService {
                 BigDecimal remaining = overspend.subtract(existingCoverage);
                 applyAndValidateResolution(payPeriod, savingsOffsets, hysaWithdrawals, carryForwardAmount, remaining);
             }
-            return repository.savePayPeriod(payPeriod);
+            PayPeriod saved = repository.savePayPeriod(payPeriod);
+            logger.info("Resolved overspend for pay period {}", id);
+            return saved;
         });
     }
 
@@ -123,7 +140,9 @@ public class PayPeriodService {
                 }
             }
             payPeriod.setStatus(PayPeriodStatus.CLOSED);
-            return repository.savePayPeriod(payPeriod);
+            PayPeriod saved = repository.savePayPeriod(payPeriod);
+            logger.info("Closed pay period {}", id);
+            return saved;
         });
     }
 
@@ -215,7 +234,9 @@ public class PayPeriodService {
     public Optional<PayPeriod> reopenPayPeriod(UUID id) {
         return repository.findPayPeriodById(id).map(payPeriod -> {
             payPeriod.setStatus(PayPeriodStatus.ACTIVE);
-            return repository.savePayPeriod(payPeriod);
+            PayPeriod saved = repository.savePayPeriod(payPeriod);
+            logger.info("Reopened pay period {}", id);
+            return saved;
         });
     }
 
@@ -236,6 +257,7 @@ public class PayPeriodService {
             });
             payPeriod.getAllocations().add(allocation);
             repository.savePayPeriod(payPeriod);
+            logger.info("Added allocation {} to pay period {}", allocation.getId(), payPeriodId);
             return allocation;
         });
     }
@@ -258,6 +280,7 @@ public class PayPeriodService {
             allocation.setAllocatedAmount(allocatedAmount);
             recalculateBalance(allocation);
             repository.save();
+            logger.info("Updated allocation {}", allocationId);
             return allocation;
         });
     }
@@ -273,6 +296,7 @@ public class PayPeriodService {
 
             recalculateBalance(allocation);
             repository.save();
+            logger.info("Added transaction {} to allocation {}", transaction.getId(), allocationId);
             return transaction;
         });
     }
@@ -295,6 +319,7 @@ public class PayPeriodService {
 
             recalculateBalance(allocation);
             repository.save();
+            logger.info("Updated transaction {}", transactionId);
             return transaction;
         });
     }
@@ -302,6 +327,7 @@ public class PayPeriodService {
     public boolean deleteTransaction(UUID transactionId) {
         Optional<Allocation> allocationOpt = repository.findAllocationByTransactionId(transactionId);
         if (!allocationOpt.isPresent()) {
+            logger.warn("Attempted to delete transaction {} but it was not found", transactionId);
             return false;
         }
 
@@ -311,6 +337,7 @@ public class PayPeriodService {
         if (removed) {
             recalculateBalance(allocation);
             repository.save();
+            logger.info("Deleted transaction {}", transactionId);
         }
 
         return removed;
@@ -327,6 +354,7 @@ public class PayPeriodService {
 
             recalculateBalance(allocation);
             repository.save();
+            logger.info("Added savings transfer {} to allocation {}", transfer.getId(), allocationId);
             return transfer;
         });
     }
@@ -347,6 +375,7 @@ public class PayPeriodService {
 
             recalculateBalance(allocation);
             repository.save();
+            logger.info("Updated savings transfer {}", transferId);
             return transfer;
         });
     }
@@ -354,6 +383,7 @@ public class PayPeriodService {
     public boolean deleteSavingsTransfer(UUID transferId) {
         Optional<Allocation> allocationOpt = repository.findAllocationBySavingsTransferId(transferId);
         if (!allocationOpt.isPresent()) {
+            logger.warn("Attempted to delete savings transfer {} but it was not found", transferId);
             return false;
         }
 
@@ -363,6 +393,7 @@ public class PayPeriodService {
         if (removed) {
             recalculateBalance(allocation);
             repository.save();
+            logger.info("Deleted savings transfer {}", transferId);
         }
 
         return removed;
@@ -370,12 +401,18 @@ public class PayPeriodService {
 
     public boolean deleteAllocation(UUID allocationId) {
         Optional<PayPeriod> payPeriodOpt = repository.findPayPeriodByAllocationId(allocationId);
-        if (!payPeriodOpt.isPresent()) return false;
+        if (!payPeriodOpt.isPresent()) {
+            logger.warn("Attempted to delete allocation {} but it was not found", allocationId);
+            return false;
+        }
         PayPeriod payPeriod = payPeriodOpt.get();
         Allocation allocation = payPeriod.getAllocations().stream()
                 .filter(a -> a.getId().equals(allocationId))
                 .findFirst().orElse(null);
-        if (allocation == null) return false;
+        if (allocation == null) {
+            logger.warn("Attempted to delete allocation {} but it was not found", allocationId);
+            return false;
+        }
         if (!allocation.getTransactions().isEmpty()) {
             throw new IllegalArgumentException("Cannot delete an allocation that has transactions");
         }
@@ -384,14 +421,17 @@ public class PayPeriodService {
         }
         payPeriod.getAllocations().removeIf(a -> a.getId().equals(allocationId));
         repository.savePayPeriod(payPeriod);
+        logger.info("Deleted allocation {}", allocationId);
         return true;
     }
 
     public boolean deletePayPeriod(UUID id) {
         if (repository.findPayPeriodById(id).isPresent()) {
             repository.deletePayPeriod(id);
+            logger.info("Deleted pay period {}", id);
             return true;
         }
+        logger.warn("Attempted to delete pay period {} but it was not found", id);
         return false;
     }
 

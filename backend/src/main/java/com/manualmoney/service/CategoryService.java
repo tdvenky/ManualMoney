@@ -6,6 +6,8 @@ import com.manualmoney.model.CategoryType;
 import com.manualmoney.model.PayPeriod;
 import com.manualmoney.model.PayPeriodStatus;
 import com.manualmoney.repository.JsonDataRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +16,8 @@ import java.util.UUID;
 
 @Service
 public class CategoryService {
+
+    private static final Logger logger = LoggerFactory.getLogger(CategoryService.class);
 
     private final JsonDataRepository repository;
 
@@ -31,7 +35,9 @@ public class CategoryService {
 
     public Category createCategory(String name, CategoryType type) {
         Category category = new Category(name, type);
-        return repository.saveCategory(category);
+        Category saved = repository.saveCategory(category);
+        logger.info("Created category {} ({})", saved.getId(), name);
+        return saved;
     }
 
     public Optional<Category> updateCategory(UUID id, String name, CategoryType type) {
@@ -50,15 +56,19 @@ public class CategoryService {
                     }
                 }
             }
-            return repository.saveCategory(category);
+            Category saved = repository.saveCategory(category);
+            logger.info("Updated category {}", id);
+            return saved;
         });
     }
 
     public boolean deleteCategory(UUID id) {
         if (repository.findCategoryById(id).isPresent()) {
             repository.deleteCategory(id);
+            logger.info("Deleted category {}", id);
             return true;
         }
+        logger.warn("Attempted to delete category {} but it was not found", id);
         return false;
     }
 
