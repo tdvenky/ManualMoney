@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.manualmoney.model.*;
 import javax.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
@@ -19,6 +21,8 @@ import java.util.UUID;
 
 @Repository
 public class JsonDataRepository {
+
+    private static final Logger logger = LoggerFactory.getLogger(JsonDataRepository.class);
 
     @Value("${manualmoney.data.path:./data/manualmoney.json}")
     private String dataPath;
@@ -107,7 +111,9 @@ public class JsonDataRepository {
             File file = new File(dataPath);
             file.getParentFile().mkdirs();
             objectMapper.writeValue(file, appData);
+            logger.info("Saved data to {}", dataPath);
         } catch (IOException e) {
+            logger.error("Failed to save data to {}", dataPath, e);
             throw new RuntimeException("Failed to save data", e);
         }
     }
