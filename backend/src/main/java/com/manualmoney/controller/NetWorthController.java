@@ -7,6 +7,8 @@ import com.manualmoney.model.NetWorthEntry;
 import com.manualmoney.model.NetWorthSnapshot;
 import com.manualmoney.model.NetWorthSubItem;
 import com.manualmoney.service.NetWorthService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +25,8 @@ import java.util.UUID;
 @RequestMapping("/api/networth")
 public class NetWorthController {
 
+    private static final Logger logger = LoggerFactory.getLogger(NetWorthController.class);
+
     private final NetWorthService netWorthService;
 
     public NetWorthController(NetWorthService netWorthService) {
@@ -31,6 +35,7 @@ public class NetWorthController {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+        logger.warn("Unprocessable request: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(Collections.singletonMap("error", ex.getMessage()));
     }
@@ -59,6 +64,7 @@ public class NetWorthController {
         try {
             id = UUID.fromString(key);
         } catch (IllegalArgumentException ex) {
+            logger.warn("Bad request deleting net worth category: invalid key {}", key);
             return ResponseEntity.notFound().build();
         }
         if (netWorthService.deleteCustomCategory(id)) {

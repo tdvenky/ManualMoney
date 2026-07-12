@@ -7,6 +7,8 @@ import com.manualmoney.model.Priority;
 import com.manualmoney.model.SavingsTransfer;
 import com.manualmoney.model.Transaction;
 import com.manualmoney.service.PayPeriodService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +24,8 @@ import java.util.UUID;
 @RequestMapping("/api")
 public class PayPeriodController {
 
+    private static final Logger logger = LoggerFactory.getLogger(PayPeriodController.class);
+
     private final PayPeriodService payPeriodService;
 
     public PayPeriodController(PayPeriodService payPeriodService) {
@@ -30,12 +34,14 @@ public class PayPeriodController {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
+        logger.warn("Bad request: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Collections.singletonMap("error", ex.getMessage()));
     }
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, String>> handleIllegalState(IllegalStateException ex) {
+        logger.warn("Unprocessable request: {}", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(Collections.singletonMap("error", ex.getMessage()));
     }
@@ -86,6 +92,7 @@ public class PayPeriodController {
             }
             return ResponseEntity.notFound().build();
         } catch (IllegalArgumentException e) {
+            logger.warn("Bad request deleting income {}: {}", id, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
@@ -139,6 +146,7 @@ public class PayPeriodController {
             }
             return ResponseEntity.notFound().build();
         } catch (IllegalArgumentException e) {
+            logger.warn("Bad request deleting allocation {}: {}", id, e.getMessage());
             return ResponseEntity.badRequest().build();
         }
     }
